@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang='fr' dir='ltr'>
+
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0, shrink-to-fit=no'>
+    <title>Page d'accueil | Les Petits Plats</title>
+    <link href="./assets/css/output.css" rel="stylesheet">
+</head>
+
+<body class="min-h-screen">
+    <header class="w-fill header-desktop pt-[245px] justify-center text-white relative">
+        <div class="absolute inset-0 bg-[rgba(0,0,0,0.3)] z-0 "></div>
+        <img src="./assets/media/svg/logo.svg" class="w-[207px] absolute top-[51px] left-[69px] z-10">
+        <div class="flex flex-col items-center justify-center z-10 gap-[29.42px]">
+            <p
+                class="w-[890px] h-[132px] text-yellow font-anton font-normal text-[44px] leading-[100%] tracking-[0] text-center flex flex-col items-stretch justify-around line-height-66 z-10">
+                CHERCHEZ PARMI PLUS DE 1500 RECETTES<br> DU QUOTIDIEN,SIMPLES ET DÉLICIEUSES</p>
+            <form class="relative ">
+                <input type="text" placeholder="Rechercher une recette, un ingrédient, ..."
+                    class="w-[954px] h-[72px] border-2 bg-white rounded-lg p-4 pl-[35px]">
+                <button type="submit"
+                    class="group absolute right-2 top-1/2 transform -translate-y-1/2 p-[12px] bg-dark rounded-[10px] hover:bg-yellow">
+                    <svg class="group-hover:stroke-black" width="28" height="29" viewBox="0 0 28 29" fill="none"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="10" cy="10.4219" r="9.5" class="stroke-white group-hover:stroke-black"
+                            stroke-width="1" />
+                        <line class="stroke-white group-hover:stroke-black" x1="18.3536" y1="19.0683" x2="27.3536"
+                            y2="28.0683" stroke-width="1" />
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </header>
+    <main class="bg-light h-max px-[102px]">
+        <header class="flex flex-col pl-[2px] pt-[21px]">
+            <div class="h-[98px] flex flex-row items-center justify-between">
+                <div id="filters-container" class="flex flex-row gap-[65px] items-center">
+                    <div class="relative" role="listbox" aria-label="Filtrer par ingrédients">
+                        <button id="ingredients-button" aria-haspopup="listbox" aria-expanded="false"
+                            class="flex flex-row gap-[63px] items-center py-[17px] px-[16px] bg-white rounded-[11px]">
+                            <span
+                                class="font-Manrope font-medium text-[16px] leading-[16px] tracking-[0]">Ingrédients</span>
+                            <svg id="ingredients-svg" width="15" height="8" viewBox="0 0 15 8" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M1 1L7.5 7L14 1" stroke="#1B1B1B" stroke-linecap="round" />
+                            </svg>
+                        </button>
+                        <form id="ingredients-form" role="menu" aria-hidden="true"
+                            class="hidden absolute flex-col bg-white bot-[-3px] w-[196.2] rounded-b-[11px] z-10">
+                            <input id="input-ingredients" value="" aria-label="Rechercher un ingrédient"
+                                class="w-[164.2px] h-[36px] bg-white border border-light-grey rounded-[2px] pl-[8px] font-Manrope font-normal text-[14px] leading-[14px] tracking-[0] mx-[16px]">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+                                xmlns="http://www.w3.org/2000/svg" class="absolute right-[27.5px] top-[11px]">
+                                <circle cx="5" cy="5" r="4.75" stroke="#7A7A7A" stroke-width="0.5" />
+                                <line x1="9.17678" y1="9.32322" x2="13.6768" y2="13.8232" stroke="#7A7A7A"
+                                    stroke-width="0.5" />
+                            </svg>
+                            <div
+                                class="max-h-[166px] flex flex-col mt-[15px] rounded-b-[11px] overflow-y-scroll gap-y-[21px]">
+                                <div id="ChosenIngredientTagsContainer" class="w-full flex flex-col"></div>
+                                <div id="ingredients-container" class="flex flex-col pb-[13px] rounded-b-[11px]"
+                                    role="listbox">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="relative" role="listbox" aria-label="Filtrer par appareils">
+                        <button id="appliances-button" aria-haspopup="listbox" aria-expanded="false"
+                            class="flex flex-row gap-[63px] items-center py-[17px] px-[16px] bg-white rounded-[11px]">
+                            <span
+                                class="font-Manrope font-medium text-[16px] leading-[16px] tracking-[0]">Appareils</span>
+                            <svg id="appliances-svg" width="15" height="8" viewBox="0 0 15 8" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M1 1L7.5 7L14 1" stroke="#1B1B1B" stroke-linecap="round" />
+                            </svg>
+                        </button>
+                        <form id="appliances-form" role="menu" aria-hidden="true"
+                            class="hidden absolute flex-col bg-white bot-[-3px] w-[180.25px] rounded-b-[11px] z-10">
+                            <input id="input-appliances" value="" aria-label="Rechercher un appareil"
+                                class="w-[148.25px] h-[36px] bg-white border border-light-grey rounded-[2px] pl-[8px] font-Manrope font-normal text-[14px] leading-[14px] tracking-[0] mx-[16px]">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+                                xmlns="http://www.w3.org/2000/svg" class="absolute right-[27.5px] top-[11px]">
+                                <circle cx="5" cy="5" r="4.75" stroke="#7A7A7A" stroke-width="0.5" />
+                                <line x1="9.17678" y1="9.32322" x2="13.6768" y2="13.8232" stroke="#7A7A7A"
+                                    stroke-width="0.5" />
+                            </svg>
+                            <div
+                                class="max-h-[166px] flex flex-col mt-[15px] rounded-b-[11px] overflow-y-scroll gap-y-[21px]">
+                                <div id="ChosenApplianceTagsContainer" class="w-full flex flex-col"></div>
+                                <div id="appliances-container" class="flex flex-col pb-[13px] rounded-b-[11px]"
+                                    role="listbox">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="relative" role="listbox" aria-label="Filtrer par ustensiles">
+                        <button id="utensils-button" aria-haspopup="listbox" aria-expanded="false"
+                            class="flex flex-row gap-[63px] items-center py-[17px] px-[16px] bg-white rounded-[11px]">
+                            <span
+                                class="font-Manrope font-medium text-[16px] leading-[16px] tracking-[0]">Ustensiles</span>
+                            <svg id="utensils-svg" width="15" height="8" viewBox="0 0 15 8" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M1 1L7.5 7L14 1" stroke="#1B1B1B" stroke-linecap="round" />
+                            </svg>
+                        </button>
+                        <form id="utensils-form" role="menu" aria-hidden="true" aria-labelledby="utensils-button"
+                            class="hidden absolute flex-col bg-white bot-[-3px] w-[189.283px] rounded-b-[11px] z-10">
+                            <input id="input-utensils" value="" aria-label="Rechercher un ustensile"
+                                class="w-[157.283px] h-[36px] bg-white border-1 border-light-grey rounded-[2px] pl-[8px] font-Manrope font-normal text-[14px] leading-[14px] tracking-[0] mx-[16px]">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+                                xmlns="http://www.w3.org/2000/svg" class="absolute right-[27.5px] top-[11px]"
+                                aria-hidden="true">
+                                <circle cx="5" cy="5" r="4.75" stroke="#7A7A7A" stroke-width="0.5" />
+                                <line x1="9.17678" y1="9.32322" x2="13.6768" y2="13.8232" stroke="#7A7A7A"
+                                    stroke-width="0.5" />
+                            </svg>
+                            <div
+                                class="max-h-[166px] flex flex-col mt-[15px] rounded-b-[11px] overflow-y-scroll gap-y-[21px]">
+                                <div id="ChosenUtensilTagsContainer" class="w-full flex flex-col"></div>
+                                <div id="utensils-container" class="flex flex-col pb-[13px] rounded-b-[11px]"
+                                    role="listbox">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <p class="flex-row font-anton font-normal text-[21px] leading-[ 100%] tracking-[0]"><span
+                        id="recipes-number">50</span>&nbsp;recette(s)</p>
+            </div>
+            <div id="search-tag-container"
+                class="w-full min-h-[34px] flex flex-row gap-[15px] flex-wrap gap-y-[15px] mb-[43px]">
+            </div>
+        </header>
+        <div id="recipes-container"
+            class="min-h-[750px] flex flex-row flex-wrap justify-start items-start gap-[48px] gap-y-[66px] pb-[155px]">
+        </div>
+    </main>
+    <script type="module" src="./assets/scripts/app.js"></script>
+</body>
+
+</html>
