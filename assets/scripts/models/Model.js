@@ -11,9 +11,14 @@ export class AppModel {
     }
     this.recipesData = recipesData;
 
+    this.allRecipes = []; // Liste de toutes les recettes
     this.allIngredients = []; // Liste de tous les ingrédients
     this.allAppliances = []; // Liste de tous les appareils
     this.allUtensils = []; // Liste de tous les ustensiles
+
+    this.allRecipesByIngredient = {}; // Objet pour stocker les recettes par ingrédient
+    this.allRecipesByAppliance = {}; // Objet pour stocker les recettes par appareil
+    this.allRecipesByUtensil = {}; // Objet pour stocker les recettes par ustensile
 
     AppModel.instance = this;
   }

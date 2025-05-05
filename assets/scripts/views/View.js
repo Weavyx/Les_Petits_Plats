@@ -1,62 +1,91 @@
 import { TemplateManager } from "../utils/TemplateManager.js";
 import { recipeCardTemplate } from "./templates/recipeCardTemplate.js";
 import { filteringOptionTemplate } from "./templates/filteringOptionTemplate.js";
+import { EventManager } from "../utils/EventManager.js";
 
 export class AppView {
   constructor() {
     if (AppView.instance) {
       return AppView.instance;
+
+      this.stateManager = null; // Instancié par le contrôleur
     }
-    const templateManager = new TemplateManager();
-    templateManager.registerFactory(
-      "createRecipeCardElement",
-      recipeCardTemplate
-    );
-    templateManager.registerFactory(
-      "createFilteringOptionElement",
-      filteringOptionTemplate
-    );
-    templateManager.registerFactory(
-      "createSelectedFilteringOptionElement",
-      filteringOptionTemplate
-    );
-    templateManager.registerFactory(
-      "createfilteringOptionTag",
-      filteringOptionTemplate
-    );
+
+    TemplateManager.registerFactories({
+      createRecipeCardElement: recipeCardTemplate,
+      createFilteringOptionElement: filteringOptionTemplate,
+      createSelectedFilteringOptionElement: filteringOptionTemplate,
+      createfilteringOptionTag: filteringOptionTemplate,
+    });
+
     AppView.instance = this;
-    this.templateManager = templateManager;
-    this.eventManager = null; // Placeholder pour l'instance d'EventManager
   }
 
   renderRecipeCard(recipe, containerElement) {
     const recipeCardElement = containerElement.appendChild(
-      this.templateManager
-        .create("createRecipeCardElement", recipe)
-        .createRecipeCardElement()
+      TemplateManager.create(
+        "createRecipeCardElement",
+        recipe
+      ).createRecipeCardElement()
     );
-    this.eventManager.addEvent(recipeCardElement, "click", () => {
+
+    EventManager.addEvent(recipeCardElement, "click", () => {
       this.toggleRecipeVisibility(recipeCardElement);
     });
   }
 
-  handleFilteringOptionClick(e, filteringOption) {
+  handleFilteringOptionClick(e, filteringOption, key) {
+    // Ajouter l'option de filtrage sélectionnée à l'état de l'application
+    switch (key) {
+      case "ingredients":
+        if (!this.stateManager.selectedIngredients.includes(filteringOption)) {
+          this.stateManager.selectedIngredients.push(filteringOption);
+        }
+        break;
+      case "appliances":
+        if (!this.stateManager.selectedAppliances.includes(filteringOption)) {
+          this.stateManager.selectedAppliances.push(filteringOption);
+        }
+        break;
+      case "utensils":
+        if (!this.stateManager.selectedUtensils.includes(filteringOption)) {
+          this.stateManager.selectedUtensils.push(filteringOption);
+        }
+        break;
+      default:
+        console.warn(`Clé inconnue pour filteringOptionType : ${key}`);
+        return;
+    }
+
+    //  Mettre à jour les recettes en fonction du nouveau filtre
+
+    // Récupérer l'ensemble des recettes qui contiennent l'entièreté des filtres
+    const filteredRecipes = this.stateManager.getRecipesFromFilters();
+    // Rendre les recettes filtrées
+    this.renderRecipes(filteredRecipes);
+
+    // Récupérer l'élément de conteneur de tags sélectionnés du formulaire
     const searchTagContainerElement = document.getElementById(
       "search-tag-container"
     );
 
-    const filteringOptionTag = this.templateManager
-      .create("createfilteringOptionTag", filteringOption)
-      .createFilteringOptionTag();
+    // Créer un élément de tag de filtrage et l'ajouter au conteneur de tags sélectionnés du formulaire
+    const filteringOptionTag = TemplateManager.create(
+      "createfilteringOptionTag",
+      filteringOption
+    ).createFilteringOptionTag();
 
     searchTagContainerElement.appendChild(filteringOptionTag);
 
+    // Récupérer l'élément de conteneur de tags sélectionnés du formulaire
     const selectedFilteringOptionContainerFormElement =
       e.target.parentNode.parentNode.firstElementChild;
 
-    const selectedfilteringFormElement = this.templateManager
-      .create("createSelectedFilteringOptionElement", filteringOption)
-      .createSelectedFilteringOptionElement();
+    // Créer un élément de filtrage sélectionné et l'ajouter au conteneur de tags sélectionnés du formulaire
+    const selectedfilteringFormElement = TemplateManager.create(
+      "createSelectedFilteringOptionElement",
+      filteringOption
+    ).createSelectedFilteringOptionElement();
 
     selectedFilteringOptionContainerFormElement.appendChild(
       selectedfilteringFormElement
@@ -64,7 +93,8 @@ export class AppView {
 
     e.target.classList.add("hidden");
 
-    this.eventManager.addEvent(filteringOptionTag, "click", (e) => {
+    // Ajouter un événement de clic sur le tag de filtrage pour le supprimer (dans la liste d'options aussi)
+    EventManager.addEvent(filteringOptionTag, "click", (e) => {
       // Supprimer l'élément de filtrage dans le conteneur de tags sélectionnés du formulaire
       searchTagContainerElement.removeChild(filteringOptionTag);
 
@@ -81,9 +111,35 @@ export class AppView {
       selectedFilteringOptionContainerFormElement.removeChild(
         selectedfilteringFormElement
       );
+
+      // Supprimer l'élément de filtrage sélectionné dans les données de l'application
+      switch (key) {
+        case "ingredients":
+          this.stateManager.selectedIngredients =
+            this.stateManager.selectedIngredients.filter(
+              (item) => item !== filteringOption
+            );
+          break;
+        case "appliances":
+          this.stateManager.selectedAppliances =
+            this.stateManager.selectedAppliances.filter(
+              (item) => item !== filteringOption
+            );
+          break;
+        case "utensils":
+          this.stateManager.selectedUtensils =
+            this.stateManager.selectedUtensils.filter(
+              (item) => item !== filteringOption
+            );
+          break;
+        default:
+          console.warn(`Clé inconnue pour filteringOptionType : ${key}`);
+          return;
+      }
     });
 
-    this.eventManager.addEvent(selectedfilteringFormElement, "click", (e) => {
+    // Ajouter un événement de clic sur l'élément de filtrage sélectionné pour le supprimer (dans la liste de tags aussi)
+    EventManager.addEvent(selectedfilteringFormElement, "click", (e) => {
       // Réafficher l'élément de filtrage dans le conteneur de filtrage
       const filteringOptionElement = Array.from(
         selectedfilteringFormElement.parentNode.parentNode.lastElementChild.querySelectorAll(
@@ -107,19 +163,45 @@ export class AppView {
       ).find((p) => p.textContent.includes(filteringOption));
 
       searchTagContainerElement.removeChild(filteringOptionTag);
+
+      // Supprimer l'élément de filtrage sélectionné dans les données de l'application
+      switch (key) {
+        case "ingredients":
+          this.stateManager.selectedIngredients =
+            this.stateManager.selectedIngredients.filter(
+              (item) => item !== filteringOption
+            );
+          break;
+        case "appliances":
+          this.stateManager.selectedAppliances =
+            this.stateManager.selectedAppliances.filter(
+              (item) => item !== filteringOption
+            );
+          break;
+        case "utensils":
+          this.stateManager.selectedUtensils =
+            this.stateManager.selectedUtensils.filter(
+              (item) => item !== filteringOption
+            );
+          break;
+        default:
+          console.warn(`Clé inconnue pour filteringOptionType : ${key}`);
+          return;
+      }
     });
   }
 
-  renderFilteringOptions(filteringOptions, containerElement) {
+  renderFilteringOptions(filteringOptions, containerElement, key) {
     containerElement.innerHTML = "";
     const fragment = document.createDocumentFragment();
 
     filteringOptions.forEach((filteringOption) => {
-      const filteringElement = this.templateManager
-        .create("createFilteringOptionElement", filteringOption)
-        .createFilteringOptionElement();
-      this.eventManager.addEvent(filteringElement, "click", (e) => {
-        this.handleFilteringOptionClick(e, filteringOption);
+      const filteringElement = TemplateManager.create(
+        "createFilteringOptionElement",
+        filteringOption
+      ).createFilteringOptionElement();
+      EventManager.addEvent(filteringElement, "click", (e) => {
+        this.handleFilteringOptionClick(e, filteringOption, key);
       });
       fragment.appendChild(filteringElement);
     });
@@ -154,7 +236,6 @@ export class AppView {
   }
 
   toggleRecipeVisibility(recipeCardElement) {
-    console.log(recipeCardElement);
     const recipeCardDescriptionElement = recipeCardElement.querySelector(
       "#recipe-card-description"
     );
@@ -174,5 +255,21 @@ export class AppView {
       );
       recipeCardIngredientsContainerElement.classList.toggle("animate-fadeIn");
     }
+  }
+
+  renderRecipesNumber(recipeCounter) {
+    const recipesNumberElement = document.getElementById("recipes-number");
+    recipesNumberElement.textContent = `${recipeCounter}`;
+  }
+
+  renderRecipes(recipes) {
+    const recipeCardsContainer = document.getElementById("recipes-container");
+    recipeCardsContainer.innerHTML = ""; // Vider le conteneur avant d'ajouter les nouvelles recettes
+
+    recipes.forEach((recipe) => {
+      this.renderRecipeCard(recipe, recipeCardsContainer);
+    });
+
+    this.renderRecipesNumber(recipes.length);
   }
 }

@@ -1,15 +1,13 @@
 import { AppModel } from "./models/Model.js";
 import { AppView } from "./views/View.js";
 import { AppController } from "./controller/Controller.js";
-import { StateManager } from "./utils/StateManager.js";
-import { EventManager } from "./utils/EventManager.js";
+import { StateManager } from "./stateManager/StateManager.js";
 
 // Initialisation des singletons
 const app = new AppController(
   new AppModel(),
   new AppView(),
-  new StateManager(),
-  new EventManager()
+  new StateManager()
 );
 
 // Détection de la page actuelle

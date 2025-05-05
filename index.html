@@ -17,7 +17,7 @@
                 class="w-[890px] h-[132px] text-yellow font-anton font-normal text-[44px] leading-[100%] tracking-[0] text-center flex flex-col items-stretch justify-around line-height-66 z-10">
                 CHERCHEZ PARMI PLUS DE 1500 RECETTES<br> DU QUOTIDIEN,SIMPLES ET DÉLICIEUSES</p>
             <form class="relative ">
-                <input type="text" placeholder="Rechercher une recette, un ingrédient, ..."
+                <input type="text" placeholder="Rechercher une recette, un ingrédient, ..." id="main-search-input"
                     class="w-[954px] h-[72px] border-2 bg-white rounded-lg p-4 pl-[35px]">
                 <button type="submit"
                     class="group absolute right-2 top-1/2 transform -translate-y-1/2 p-[12px] bg-dark rounded-[10px] hover:bg-yellow">
@@ -48,7 +48,7 @@
                         </button>
                         <form id="ingredients-form" role="menu" aria-hidden="true"
                             class="hidden absolute flex-col bg-white bot-[-3px] w-[196.2] rounded-b-[11px] z-10">
-                            <input id="input-ingredients" value="" aria-label="Rechercher un ingrédient"
+                            <input id="ingredients-input" value="" aria-label="Rechercher un ingrédient" type="text"
                                 class="w-[164.2px] h-[36px] bg-white border border-light-grey rounded-[2px] pl-[8px] font-Manrope font-normal text-[14px] leading-[14px] tracking-[0] mx-[16px]">
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
                                 xmlns="http://www.w3.org/2000/svg" class="absolute right-[27.5px] top-[11px]">
@@ -77,7 +77,7 @@
                         </button>
                         <form id="appliances-form" role="menu" aria-hidden="true"
                             class="hidden absolute flex-col bg-white bot-[-3px] w-[180.25px] rounded-b-[11px] z-10">
-                            <input id="input-appliances" value="" aria-label="Rechercher un appareil"
+                            <input id="appliances-input" value="" aria-label="Rechercher un appareil" type="text"
                                 class="w-[148.25px] h-[36px] bg-white border border-light-grey rounded-[2px] pl-[8px] font-Manrope font-normal text-[14px] leading-[14px] tracking-[0] mx-[16px]">
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
                                 xmlns="http://www.w3.org/2000/svg" class="absolute right-[27.5px] top-[11px]">
@@ -106,7 +106,7 @@
                         </button>
                         <form id="utensils-form" role="menu" aria-hidden="true" aria-labelledby="utensils-button"
                             class="hidden absolute flex-col bg-white bot-[-3px] w-[189.283px] rounded-b-[11px] z-10">
-                            <input id="input-utensils" value="" aria-label="Rechercher un ustensile"
+                            <input id="utensils-input" value="" aria-label="Rechercher un ustensile" type="text"
                                 class="w-[157.283px] h-[36px] bg-white border-1 border-light-grey rounded-[2px] pl-[8px] font-Manrope font-normal text-[14px] leading-[14px] tracking-[0] mx-[16px]">
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
                                 xmlns="http://www.w3.org/2000/svg" class="absolute right-[27.5px] top-[11px]"
