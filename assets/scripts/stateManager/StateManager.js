@@ -263,8 +263,11 @@ export class StateManager {
     let tokensLen = tokens.length;
     while (i < tokensLen) {
       const token = tokens[i];
-      const useInvertedIndex = tokensWithSpaces[i] && tokensWithSpaces[i].endsWith(" ");
-      let idsArray = useInvertedIndex ? invertedIndex[token] || [] : prefixIndex[token] || [];
+      const useInvertedIndex =
+        tokensWithSpaces[i] && tokensWithSpaces[i].endsWith(" ");
+      let idsArray = useInvertedIndex
+        ? invertedIndex[token] || []
+        : prefixIndex[token] || [];
       // Toujours convertir en tableau si c'est un Set
       if (!Array.isArray(idsArray)) {
         let arr = [];
@@ -327,7 +330,8 @@ export class StateManager {
       const { prefixIndex, invertedIndex } = this.model;
       for (let i = 0; i < tokens.length; i++) {
         const token = tokens[i];
-        const useInvertedIndex = tokensWithSpaces[i] && tokensWithSpaces[i].endsWith(" ");
+        const useInvertedIndex =
+          tokensWithSpaces[i] && tokensWithSpaces[i].endsWith(" ");
         let idsForTokenSet;
         if (useInvertedIndex) {
           idsForTokenSet = new Set(invertedIndex[token] || []);
