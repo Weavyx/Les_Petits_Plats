@@ -1,167 +1,169 @@
 import { EventManager } from "../utils/EventManager.js";
+import { TextUtils } from "../utils/TextUtils.js";
 
+/**
+ * Classe principale du contrôleur de l'application.
+ * Gère la logique entre le modèle, la vue et le gestionnaire d'état.
+ */
 export class AppController {
-  constructor(model, view, stateManager) {
+  /**
+   * Constructeur de la classe AppController.
+   * Implémente un singleton pour garantir une seule instance.
+   *
+   * @param {object} model - Le modèle de données.
+   * @param {object} view - La vue pour le rendu.
+   * @param {object} appStateManager - Le gestionnaire d'état.
+   */
+  constructor(model, view, appStateManager) {
     if (AppController.instance) {
       return AppController.instance;
     }
+
     this.model = model;
     this.view = view;
-    this.stateManager = stateManager;
+    this.appStateManager = appStateManager;
 
-    this.view.stateManager = this.stateManager;
-    this.stateManager.model = this.model;
-    this.stateManager.view = this.view;
+    // Liaison des composants entre eux
+    this.view.appStateManager = this.appStateManager;
+    this.view.controller = this;
+    this.appStateManager.controller = this;
+    this.appStateManager.model = this.model;
+    this.appStateManager.view = this.view;
 
     AppController.instance = this;
   }
 
-  renderHomePage() {
+  /**
+   * Méthode principale pour rendre la page d'accueil.
+   * Récupère les recettes, met à jour les index et affiche les options de filtrage.
+   *
+   * @async
+   * @returns {Promise<void>} Une promesse qui se résout une fois la page rendue.
+   */
+  initializeHomePage() {
     try {
       this.model.fetchRecipes().then((recipes) => {
-        // this.stateManager.resetState(); // Réinitialiser l'état avant le rendu
-
-        // Récupérer les éléments du DOM
+        // Récupération des conteneurs DOM
         const recipeCardsContainer =
           document.getElementById("recipes-container");
+        const ingredientsContainer = document.getElementById(
+          "ingredients-container"
+        );
+        const appliancesContainer = document.getElementById(
+          "appliances-container"
+        );
+        const utensilsContainer = document.getElementById("utensils-container");
+
+        // Réinitialisation du conteneur des cartes de recettes
         recipeCardsContainer.innerHTML = "";
 
-        // Créer des ensembles pour les ingrédients, appareils et ustensiles
+        // Initialisation des structures de données
         const allIngredientsSet = new Set();
         const allAppliancesSet = new Set();
         const allUtensilsSet = new Set();
+        const allRecipesByFilters = new Map();
+        const prefixIndex = {};
+        const invertedIndex = {};
 
-        // Créer des objets pour stocker les recettes par ingrédient, appareil et ustensile
-        const allRecipesByIngredient = {};
-        const allRecipesByAppliance = {};
-        const allRecipesByUtensil = {};
+        // Parcours des recettes pour les afficher et collecter les données
+        for (let recipe of recipes) {
+          // Affichage de la carte de recette
+          this.view.displayRecipeCard(recipe, recipeCardsContainer);
 
-        let recipeCounter = 0; // Compteur de recettes
+          // Normalisation des données
+          const normalizedIngredients = recipe.ingredients.map((i) =>
+            TextUtils.normalizeText(i.ingredient)
+          );
+          const normalizedAppliance = TextUtils.normalizeText(recipe.appliance);
+          const normalizedUtensils = recipe.ustensils.map((u) =>
+            TextUtils.normalizeText(u)
+          );
 
-        // Parcourir les recettes, les afficher et enregistrer les ingrédients, appareils et ustensiles
-        recipes.forEach((recipe) => {
-          this.view.renderRecipeCard(recipe, recipeCardsContainer);
-
-          // Remplir les listes d'ingrédients, appareils et ustensiles
-          // Associer les ingrédients, appareils et ustensiles à chaque recette
-          recipe.ingredients.forEach((ingredient) => {
-            const ingredientKey = ingredient.ingredient.toLowerCase();
-            allIngredientsSet.add(ingredientKey);
-
-            // Ajouter la recette à l'objet allRecipesByIngredient
-            if (!allRecipesByIngredient[ingredientKey]) {
-              allRecipesByIngredient[ingredientKey] = [];
-            }
-            allRecipesByIngredient[ingredientKey].push(recipe);
-          });
-
-          const applianceKey = recipe.appliance.toLowerCase();
-          allAppliancesSet.add(applianceKey);
-
-          // Ajouter la recette à l'objet allRecipesByAppliance
-          if (!allRecipesByAppliance[applianceKey]) {
-            allRecipesByAppliance[applianceKey] = [];
+          // Mise à jour des ensembles uniques
+          for (let ingredient of normalizedIngredients) {
+            allIngredientsSet.add(ingredient);
           }
-          allRecipesByAppliance[applianceKey].push(recipe);
+          allAppliancesSet.add(normalizedAppliance);
+          for (let utensil of normalizedUtensils) {
+            allUtensilsSet.add(utensil);
+          }
 
-          recipe.ustensils.forEach((utensil) => {
-            const utensilKey = utensil.toLowerCase();
-            allUtensilsSet.add(utensilKey);
-
-            // Ajouter la recette à l'objet allRecipesByUtensil
-            if (!allRecipesByUtensil[utensilKey]) {
-              allRecipesByUtensil[utensilKey] = [];
+          // Mise à jour des filtres
+          for (let value of [
+            ...normalizedIngredients,
+            normalizedAppliance,
+            ...normalizedUtensils,
+          ]) {
+            if (!allRecipesByFilters.has(value)) {
+              allRecipesByFilters.set(value, []);
             }
-            allRecipesByUtensil[utensilKey].push(recipe);
-          });
+            allRecipesByFilters.get(value).push(recipe.id);
+          }
 
-          recipeCounter++; // Incrémenter le compteur de recettes
-          this.model.allRecipes.push(recipe); // Ajouter la recette au modèle
+          // Création des index pour la recherche
+          const fullText = `${recipe.name} ${
+            recipe.description
+          } ${normalizedIngredients.join(" ")}`;
+          const tokens = TextUtils.normalizeText(fullText).split(" ");
+
+          for (let token of tokens) {
+            if (!token) continue;
+
+            // Index inversé
+            if (!invertedIndex[token]) {
+              invertedIndex[token] = new Set();
+            }
+            invertedIndex[token].add(recipe.id);
+
+            // Index des préfixes
+            for (let i = 1; i <= token.length; i++) {
+              const prefix = token.slice(0, i);
+              if (!prefixIndex[prefix]) {
+                prefixIndex[prefix] = new Set();
+              }
+              prefixIndex[prefix].add(recipe.id);
+            }
+          }
+        }
+
+        // Mise à jour du modèle et de l'état
+        Object.assign(this.model, {
+          prefixIndex,
+          invertedIndex,
+          allRecipesByFilters,
+          allIngredients: allIngredientsSet,
+          allAppliances: allAppliancesSet,
+          allUtensils: allUtensilsSet,
         });
 
-        // Enregistrer les objets dans le modèle
-        this.model.allRecipesByIngredient = allRecipesByIngredient;
-        this.model.allRecipesByAppliance = allRecipesByAppliance;
-        this.model.allRecipesByUtensil = allRecipesByUtensil;
+        this.appStateManager.currentFilteredRecipeIds = recipes.map(
+          (recipe) => recipe.id
+        ); // Ne conserver que les IDs des recettes
+        this.model.allRecipes = recipes;
 
-        // Afficher tous les ingrédients, appareils et ustensiles dans les formulaires de filtrage
-        const ingredientOptionsContainer = document.getElementById(
-          "ingredients-container"
-        );
-        this.view.renderFilteringOptions(
+        // Affichage des options de filtrage
+        this.view.displayFilteringOptions(
           allIngredientsSet,
-          ingredientOptionsContainer,
+          ingredientsContainer,
           "ingredients"
         );
-
-        const appliancesOptionsContainer = document.getElementById(
-          "appliances-container"
-        );
-        this.view.renderFilteringOptions(
+        this.view.displayFilteringOptions(
           allAppliancesSet,
-          appliancesOptionsContainer,
+          appliancesContainer,
           "appliances"
         );
-
-        const utensilsOptionsContainer =
-          document.getElementById("utensils-container");
-        this.view.renderFilteringOptions(
+        this.view.displayFilteringOptions(
           allUtensilsSet,
-          utensilsOptionsContainer,
+          utensilsContainer,
           "utensils"
         );
 
-        // Gestion de l'ouverture et de la fermeture des formulaires de filtrage (ingrédients, appareils et ustensiles)
-        EventManager.setupFilteringFormVisibilityOnClick(
-          "ingredients-button",
-          "#ingredients-form",
-          "#ingredients-svg",
-          this.view
-        );
-        EventManager.setupFilteringFormVisibilityOnClick(
-          "appliances-button",
-          "#appliances-form",
-          "#appliances-svg",
-          this.view
-        );
-        EventManager.setupFilteringFormVisibilityOnClick(
-          "utensils-button",
-          "#utensils-form",
-          "#utensils-svg",
-          this.view
-        );
+        // Configuration des formulaires et des champs de recherche
+        this.configureFilteringForms();
+        this.configureSearchInputs(); // Vide les champs de recherche et attache les événements de récupération de saisie
 
-        // Gestion de la récupération des différents textes de recherche
-        const mainInput = document.getElementById("main-search-input");
-        EventManager.addEvent(mainInput, "input", (e) => {
-          this.stateManager.setSearchText("mainSearchText", e.target.value);
-        });
-
-        const ingredientsInput = document.getElementById("ingredients-input");
-        EventManager.addEvent(ingredientsInput, "input", (e) => {
-          this.stateManager.setSearchText(
-            "ingredientsSearchText",
-            e.target.value
-          );
-        });
-
-        const appliancesInput = document.getElementById("appliances-input");
-        EventManager.addEvent(appliancesInput, "input", (e) => {
-          this.stateManager.setSearchText(
-            "appliancesSearchText",
-            e.target.value
-          );
-        });
-
-        const utensilsInput = document.getElementById("utensils-input");
-        EventManager.addEvent(utensilsInput, "input", (e) => {
-          this.stateManager.setSearchText("utensilsSearchText", e.target.value);
-        });
-
-        // Enregistrer les listes d'ingrédients, appareils et ustensiles dans le modèle
-        this.model.allIngredients = allIngredientsSet;
-        this.model.allAppliances = allAppliancesSet;
-        this.model.allUtensils = allUtensilsSet;
+        // Afficher le nombre de recettes
+        this.view.updateRecipeCount(recipes.length);
       });
     } catch (error) {
       console.error(
@@ -169,5 +171,66 @@ export class AppController {
         error.message
       );
     }
+  }
+
+  /**
+   * Configure la visibilité des formulaires de filtrage lors des clics sur les boutons.
+   */
+  configureFilteringForms() {
+    [
+      {
+        button: "ingredients-button",
+        form: "#ingredients-form",
+        dropdownSvg: "#ingredients-dropdown-svg",
+      },
+      {
+        button: "appliances-button",
+        form: "#appliances-form",
+        dropdownSvg: "#appliances-dropdown-svg",
+      },
+      {
+        button: "utensils-button",
+        form: "#utensils-form",
+        dropdownSvg: "#utensils-dropdown-svg",
+      },
+    ].forEach(({ button, form, dropdownSvg }) => {
+      EventManager.setupFilterFormToggle(button, form, dropdownSvg, this.view);
+    });
+  }
+
+  /**
+   * Configure les champs de recherche pour mettre à jour le texte de recherche dans le gestionnaire d'état.
+   */
+  configureSearchInputs() {
+    [
+      { id: "main-search-input", key: "mainSearchQuery" },
+      { id: "ingredients-input", key: "ingredientsQuery" },
+      { id: "appliances-input", key: "appliancesQuery" },
+      { id: "utensils-input", key: "utensilsQuery" },
+    ].forEach(({ id, key }) => {
+      const input = document.getElementById(id);
+      input.value = "";
+      EventManager.attachEventListener(input, "input", (e) => {
+        // Met à jour la requête de recherche dans le gestionnaire d'état
+        this.appStateManager.updateSearchQuery(key, e.target);
+      });
+    });
+    const mainSearchButton = document.getElementById("main-search-button");
+    mainSearchButton.addEventListener("click", (e) => {
+      e.preventDefault(); // Empêche le rechargement de la page
+    });
+  }
+
+  /**
+   * Rend une carte de recette dans le conteneur spécifié.
+   *
+   * @param {Array} recipesIds - Liste des IDs des recettes à afficher.
+   */
+  displayRecipesByIds(recipesIds) {
+    const recipes = recipesIds.map((recipeId) => {
+      return this.model.recipesMap.get(recipeId);
+    });
+
+    this.view.renderRecipes(recipes);
   }
 }

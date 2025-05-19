@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@theme {
+  --breakpoint-xl: 1440px;
+  --breakpoint-l: 1322px;
+  --breakpoint-m: 1024px;
+  --breakpoint-s: 768px;
+  --breakpoint-xs: 320px;
+}
+
 @font-face {
   font-family: "anton";
   src: url("../fonts/Anton/Anton-Regular.ttf") format("truetype");
@@ -19,7 +27,7 @@
     font-family: "Manrope", sans-serif;
   }
 
-  .header-desktop {
+  .header-desktop-l {
     height: 667px;
     background-image: url("/assets/media/bg/main_bg.avif");
     background-size: cover;

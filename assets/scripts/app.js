@@ -3,23 +3,24 @@ import { AppView } from "./views/View.js";
 import { AppController } from "./controller/Controller.js";
 import { StateManager } from "./stateManager/StateManager.js";
 
-// Initialisation des singletons
-const app = new AppController(
-  new AppModel(),
-  new AppView(),
-  new StateManager()
-);
-
 // Détection de la page actuelle
 const CURRENT_PAGE = window.location.pathname;
 
 /**
- * Initialise l'application.
+ * Vérifie si la page actuelle correspond à la page d'accueil.
+ * @returns {boolean} True si la page est l'index, sinon false.
  */
-function initializeApp() {
+const isHomePage = () =>
+  CURRENT_PAGE.includes("index.html") || CURRENT_PAGE === "/";
+
+/**
+ * Initialise l'application.
+ * @param {AppController} appController - Instance du contrôleur de l'application.
+ */
+const initializeApp = (appController) => {
   try {
-    if (CURRENT_PAGE.includes("index.html") || CURRENT_PAGE === "/") {
-      app.renderHomePage();
+    if (isHomePage()) {
+      appController.initializeHomePage();
     }
   } catch (error) {
     console.error(
@@ -27,11 +28,15 @@ function initializeApp() {
       error.message
     );
   }
-}
+};
 
-/**
- * Exécute le code après le chargement complet du DOM.
- */
+// Appel de la fonction d'initialisation
 document.addEventListener("DOMContentLoaded", () => {
-  initializeApp();
+  // Initialisation de l'application après le chargement complet du DOM
+  const appController = new AppController(
+    new AppModel(),
+    new AppView(),
+    new StateManager()
+  );
+  initializeApp(appController);
 });
