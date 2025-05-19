@@ -79,11 +79,13 @@ export function recipeCardTemplate(data) {
       "grid grid-cols-2 mt-[15px] gap-y-[21px] gap-x-[14px]"
     );
 
-    // Ajout des ingrédients un par un dans la grille
-    ingredients.forEach((ingredient) => {
-      const ingredientElement = createIngredientElement(ingredient);
-      ingredientsGrid.appendChild(ingredientElement);
-    });
+    // Ajout des ingrédients un par un dans la grille (remplacement de forEach par une boucle for)
+    if (ingredients && ingredients.length) {
+      for (let i = 0; i < ingredients.length; i++) {
+        const ingredientElement = createIngredientElement(ingredients[i]);
+        ingredientsGrid.appendChild(ingredientElement);
+      }
+    }
 
     ingredientsContainer.appendChild(ingredientsTitle);
     ingredientsContainer.appendChild(ingredientsGrid);

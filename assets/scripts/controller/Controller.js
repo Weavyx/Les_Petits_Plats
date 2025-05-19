@@ -42,7 +42,8 @@ export class AppController {
    */
   initializeHomePage() {
     try {
-      this.model.fetchRecipes().then((recipes) => {
+      var self = this;
+      this.model.fetchRecipes().then(function (recipes) {
         // Récupération des conteneurs DOM
         const recipeCardsContainer =
           document.getElementById("recipes-container");
@@ -66,34 +67,44 @@ export class AppController {
         const invertedIndex = {};
 
         // Parcours des recettes pour les afficher et collecter les données
-        for (let recipe of recipes) {
+        for (let r = 0; r < recipes.length; r++) {
+          let recipe = recipes[r];
           // Affichage de la carte de recette
-          this.view.displayRecipeCard(recipe, recipeCardsContainer);
+          self.view.displayRecipeCard(recipe, recipeCardsContainer);
 
           // Normalisation des données
-          const normalizedIngredients = recipe.ingredients.map((i) =>
-            TextUtils.normalizeText(i.ingredient)
-          );
-          const normalizedAppliance = TextUtils.normalizeText(recipe.appliance);
-          const normalizedUtensils = recipe.ustensils.map((u) =>
-            TextUtils.normalizeText(u)
-          );
+          var normalizedIngredients = [];
+          for (let i = 0; i < recipe.ingredients.length; i++) {
+            normalizedIngredients.push(
+              TextUtils.normalizeText(recipe.ingredients[i].ingredient)
+            );
+          }
+          var normalizedAppliance = TextUtils.normalizeText(recipe.appliance);
+          var normalizedUtensils = [];
+          for (let u = 0; u < recipe.ustensils.length; u++) {
+            normalizedUtensils.push(TextUtils.normalizeText(recipe.ustensils[u]));
+          }
 
           // Mise à jour des ensembles uniques
-          for (let ingredient of normalizedIngredients) {
-            allIngredientsSet.add(ingredient);
+          for (let i = 0; i < normalizedIngredients.length; i++) {
+            allIngredientsSet.add(normalizedIngredients[i]);
           }
           allAppliancesSet.add(normalizedAppliance);
-          for (let utensil of normalizedUtensils) {
-            allUtensilsSet.add(utensil);
+          for (let u = 0; u < normalizedUtensils.length; u++) {
+            allUtensilsSet.add(normalizedUtensils[u]);
           }
 
           // Mise à jour des filtres
-          for (let value of [
-            ...normalizedIngredients,
-            normalizedAppliance,
-            ...normalizedUtensils,
-          ]) {
+          var filterValues = [];
+          for (let i = 0; i < normalizedIngredients.length; i++) {
+            filterValues.push(normalizedIngredients[i]);
+          }
+          filterValues.push(normalizedAppliance);
+          for (let i = 0; i < normalizedUtensils.length; i++) {
+            filterValues.push(normalizedUtensils[i]);
+          }
+          for (let v = 0; v < filterValues.length; v++) {
+            let value = filterValues[v];
             if (!allRecipesByFilters.has(value)) {
               allRecipesByFilters.set(value, []);
             }
@@ -101,12 +112,16 @@ export class AppController {
           }
 
           // Création des index pour la recherche
-          const fullText = `${recipe.name} ${
-            recipe.description
-          } ${normalizedIngredients.join(" ")}`;
-          const tokens = TextUtils.normalizeText(fullText).split(" ");
+          var fullText =
+            recipe.name +
+            " " +
+            recipe.description +
+            " " +
+            normalizedIngredients.join(" ");
+          var tokens = TextUtils.normalizeText(fullText).split(" ");
 
-          for (let token of tokens) {
+          for (let t = 0; t < tokens.length; t++) {
+            let token = tokens[t];
             if (!token) continue;
 
             // Index inversé
@@ -127,43 +142,45 @@ export class AppController {
         }
 
         // Mise à jour du modèle et de l'état
-        Object.assign(this.model, {
-          prefixIndex,
-          invertedIndex,
-          allRecipesByFilters,
+        Object.assign(self.model, {
+          prefixIndex: prefixIndex,
+          invertedIndex: invertedIndex,
+          allRecipesByFilters: allRecipesByFilters,
           allIngredients: allIngredientsSet,
           allAppliances: allAppliancesSet,
           allUtensils: allUtensilsSet,
         });
 
-        this.appStateManager.currentFilteredRecipeIds = recipes.map(
-          (recipe) => recipe.id
-        ); // Ne conserver que les IDs des recettes
-        this.model.allRecipes = recipes;
+        var recipeIds = [];
+        for (let i = 0; i < recipes.length; i++) {
+          recipeIds.push(recipes[i].id);
+        }
+        self.appStateManager.currentFilteredRecipeIds = recipeIds; // Ne conserver que les IDs des recettes
+        self.model.allRecipes = recipes;
 
         // Affichage des options de filtrage
-        this.view.displayFilteringOptions(
+        self.view.displayFilteringOptions(
           allIngredientsSet,
           ingredientsContainer,
           "ingredients"
         );
-        this.view.displayFilteringOptions(
+        self.view.displayFilteringOptions(
           allAppliancesSet,
           appliancesContainer,
           "appliances"
         );
-        this.view.displayFilteringOptions(
+        self.view.displayFilteringOptions(
           allUtensilsSet,
           utensilsContainer,
           "utensils"
         );
 
         // Configuration des formulaires et des champs de recherche
-        this.configureFilteringForms();
-        this.configureSearchInputs(); // Vide les champs de recherche et attache les événements de récupération de saisie
+        self.configureFilteringForms();
+        self.configureSearchInputs(); // Vide les champs de recherche et attache les événements de récupération de saisie
 
         // Afficher le nombre de recettes
-        this.view.updateRecipeCount(recipes.length);
+        self.view.updateRecipeCount(recipes.length);
       });
     } catch (error) {
       console.error(
@@ -177,7 +194,7 @@ export class AppController {
    * Configure la visibilité des formulaires de filtrage lors des clics sur les boutons.
    */
   configureFilteringForms() {
-    [
+    var configs = [
       {
         button: "ingredients-button",
         form: "#ingredients-form",
@@ -193,30 +210,39 @@ export class AppController {
         form: "#utensils-form",
         dropdownSvg: "#utensils-dropdown-svg",
       },
-    ].forEach(({ button, form, dropdownSvg }) => {
-      EventManager.setupFilterFormToggle(button, form, dropdownSvg, this.view);
-    });
+    ];
+    for (let i = 0; i < configs.length; i++) {
+      let config = configs[i];
+      EventManager.setupFilterFormToggle(
+        config.button,
+        config.form,
+        config.dropdownSvg,
+        this.view
+      );
+    }
   }
 
   /**
    * Configure les champs de recherche pour mettre à jour le texte de recherche dans le gestionnaire d'état.
    */
   configureSearchInputs() {
-    [
+    var configs = [
       { id: "main-search-input", key: "mainSearchQuery" },
       { id: "ingredients-input", key: "ingredientsQuery" },
       { id: "appliances-input", key: "appliancesQuery" },
       { id: "utensils-input", key: "utensilsQuery" },
-    ].forEach(({ id, key }) => {
-      const input = document.getElementById(id);
+    ];
+    for (let i = 0; i < configs.length; i++) {
+      let config = configs[i];
+      const input = document.getElementById(config.id);
       input.value = "";
       EventManager.attachEventListener(input, "input", (e) => {
         // Met à jour la requête de recherche dans le gestionnaire d'état
-        this.appStateManager.updateSearchQuery(key, e.target);
+        this.appStateManager.updateSearchQuery(config.key, e.target);
       });
-    });
+    }
     const mainSearchButton = document.getElementById("main-search-button");
-    mainSearchButton.addEventListener("click", (e) => {
+    mainSearchButton.addEventListener("click", function (e) {
       e.preventDefault(); // Empêche le rechargement de la page
     });
   }
@@ -227,10 +253,10 @@ export class AppController {
    * @param {Array} recipesIds - Liste des IDs des recettes à afficher.
    */
   displayRecipesByIds(recipesIds) {
-    const recipes = recipesIds.map((recipeId) => {
-      return this.model.recipesMap.get(recipeId);
-    });
-
+    var recipes = [];
+    for (let i = 0; i < recipesIds.length; i++) {
+      recipes.push(this.model.recipesMap.get(recipesIds[i]));
+    }
     this.view.renderRecipes(recipes);
   }
 }

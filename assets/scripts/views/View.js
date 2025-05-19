@@ -39,7 +39,8 @@ export class AppView {
     const fragment = document.createDocumentFragment();
 
     // Remplir le conteneur avec les options de filtrage
-    options.forEach((filteringOption) => {
+    for (let i = 0; i < options.length; i++) {
+      const filteringOption = options[i];
       // Créer un élément de filtrage
       const filteringElement = TemplateManager.create(
         "createFilteringOptionElement",
@@ -62,7 +63,7 @@ export class AppView {
 
       // Ajouter l'élément de filtrage au fragment
       fragment.appendChild(filteringElement);
-    });
+    }
 
     // Ajouter le fragment au conteneur
     container.appendChild(fragment);
@@ -109,9 +110,9 @@ export class AppView {
     const recipeCardsContainer = document.getElementById("recipes-container");
     recipeCardsContainer.innerHTML = ""; // Vider le conteneur avant d'ajouter les nouvelles recettes
 
-    recipes.forEach((recipe) => {
-      this.displayRecipeCard(recipe, recipeCardsContainer);
-    });
+    for (let i = 0; i < recipes.length; i++) {
+      this.displayRecipeCard(recipes[i], recipeCardsContainer);
+    }
 
     this.updateRecipeCount(recipes.length);
   }

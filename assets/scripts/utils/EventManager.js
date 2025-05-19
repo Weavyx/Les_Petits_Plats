@@ -81,8 +81,18 @@ export class EventManager {
     const containerId = containerIdMap[key];
     const tagContainer = document.getElementById(containerId);
 
-    if (!stateManager.activeFilters.includes(filteringOption)) {
-      stateManager.activeFilters.push(filteringOption);
+    // Remplacement de includes et push
+    var alreadyInFilters = false;
+    for (var i = 0; i < stateManager.activeFilters.length; i++) {
+      if (stateManager.activeFilters[i] === filteringOption) {
+        alreadyInFilters = true;
+        break;
+      }
+    }
+
+    if (!alreadyInFilters) {
+      // Ajout sans push
+      stateManager.activeFilters[stateManager.activeFilters.length] = filteringOption;
 
       // Afficher le tag dans le conteneur principal
       const filteringOptionTag = view.displayFilterTag(filteringOption);
@@ -95,9 +105,14 @@ export class EventManager {
 
       // Gestion de la suppression du tag
       const removeFilter = () => {
-        stateManager.activeFilters = stateManager.activeFilters.filter(
-          (item) => item !== filteringOption
-        );
+        // Remplacement de filter
+        var newActiveFilters = [];
+        for (var j = 0; j < stateManager.activeFilters.length; j++) {
+          if (stateManager.activeFilters[j] !== filteringOption) {
+            newActiveFilters[newActiveFilters.length] = stateManager.activeFilters[j];
+          }
+        }
+        stateManager.activeFilters = newActiveFilters;
 
         // Supprimer les tags des conteneurs
         if (filteringOptionTag.parentNode) {
@@ -145,39 +160,74 @@ export class EventManager {
 
     const tagContainer = document.getElementById("search-tag-container");
     if (tagContainer) {
-      tagContainer.removeChild(optionTagElement);
+      // Remplacement de removeChild par une boucle pour trouver l'élément
+      var children = tagContainer.childNodes;
+      for (var i = 0; i < children.length; i++) {
+        if (children[i] === optionTagElement) {
+          tagContainer.removeChild(optionTagElement);
+          break;
+        }
+      }
     }
 
     if (specificTagsContainerElement) {
-      specificTagsContainerElement.removeChild(selectedFilteringOptionElement);
+      var children2 = specificTagsContainerElement.childNodes;
+      for (var j = 0; j < children2.length; j++) {
+        if (children2[j] === selectedFilteringOptionElement) {
+          specificTagsContainerElement.removeChild(selectedFilteringOptionElement);
+          break;
+        }
+      }
     }
   }
 
   static handleEraseButtonClick(input, controller, key) {
+    function toArray(setLike) {
+      var arr = [];
+      // Remplacement de for...of par une boucle classique
+      var iterator = setLike[Symbol.iterator]();
+      var step = iterator.next();
+      while (!step.done) {
+        arr[arr.length] = step.value;
+        step = iterator.next();
+      }
+      return arr;
+    }
     const containerIdMap = {
-      "main-search-icon": () => {
+      "main-search-icon": function () {
+        // Correction de la récupération de tous les IDs de recettes
+        var allIds = [];
+        var recipes = controller.model.allRecipes;
+        if (recipes && typeof recipes.length === "number") {
+          for (var i = 0; i < recipes.length; i++) {
+            if (recipes[i] && recipes[i].id !== undefined) {
+              allIds[allIds.length] = recipes[i].id;
+            }
+          }
+        }
         controller.displayRecipesByIds(
-          controller.appStateManager.filterRecipesBySelectedFilters(
-            Array.from(controller.model.allRecipes.lenght, (_, i) => i + 1)
-          )
+          controller.appStateManager.filterRecipesBySelectedFilters(allIds)
         );
       },
-      "ingredients-search-icon": () => {
+      "ingredients-search-icon": function () {
+        var arr = toArray(controller.model.allIngredients);
         controller.appStateManager.renderFilteredOptions(
           "ingredients",
-          Array.from(controller.model.allIngredients)
+          arr
         );
       },
-      "appliances-search-icon": () => {
+      "appliances-search-icon": function () {
+        var arr = toArray(controller.model.allAppliances);
         controller.appStateManager.renderFilteredOptions(
           "appliances",
-          Array.from(controller.model.allAppliances)
+          arr
         );
       },
-      "utensils-search-icon": () => {
+      "utensils-search-icon": function () {
+        var arr = toArray(controller.model.allUtensils);
         controller.appStateManager.renderFilteredOptions(
           "utensils",
-          Array.from(controller.model.allUtensils)
+          arr
         );
       },
     };

@@ -27,8 +27,10 @@ export class TemplateManager {
    * @param {Function} factories.createfilteringOptionTag - La factory pour créer un tag d'option de filtrage.
    */
   static registerFactories(factories) {
-    for (const [key, factory] of Object.entries(factories)) {
-      this.registerFactory(key, factory);
+    for (const key in factories) {
+      if (factories.hasOwnProperty(key)) {
+        this.registerFactory(key, factories[key]);
+      }
     }
   }
 

@@ -57,8 +57,10 @@ export function filteringOptionTemplate(option) {
     path.setAttribute("stroke-linecap", "round");
     path.setAttribute("stroke-linejoin", "round");
 
-    deleteIcon.appendChild(circle);
-    deleteIcon.appendChild(path);
+    var elementsToAdd = [circle, path];
+    for (var i = 0; i < elementsToAdd.length; i++) {
+      deleteIcon.appendChild(elementsToAdd[i]);
+    }
     filteringOptionElement.appendChild(deleteIcon);
     filteringOptionContainer.appendChild(filteringOptionElement);
     return filteringOptionContainer;

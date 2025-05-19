@@ -162,9 +162,14 @@ export class StateManager {
    */
   filterOptionsAndRender(key, value, dataSet) {
     const normalizedValue = TextUtils.normalizeText(value);
-    const filteredOptions = dataSet.filter((item) =>
-      TextUtils.normalizeText(item).includes(normalizedValue)
-    );
+    const filteredOptions = [];
+    for (let i = 0; i < dataSet.length; i++) {
+      const item = dataSet[i];
+      if (TextUtils.normalizeText(item).includes(normalizedValue)) {
+        filteredOptions.push(item);
+      }
+    }
+    console.log("Filtered options:", filteredOptions);
     this.renderFilteredOptions(key, filteredOptions);
   }
 
@@ -190,10 +195,28 @@ export class StateManager {
    */
   filterRecipesBySelectedFilters(filteredRecipes) {
     if (this.activeFilters.length === 0) return filteredRecipes;
-    return this.activeFilters.reduce((filtered, filter) => {
+    let filtered = filteredRecipes;
+    for (let i = 0; i < this.activeFilters.length; i++) {
+      const filter = this.activeFilters[i];
       const recipesByFilter = this.model.allRecipesByFilters.get(filter) || [];
-      return filtered.filter((id) => recipesByFilter.includes(id));
-    }, filteredRecipes);
+      const nextFiltered = [];
+      for (let j = 0; j < filtered.length; j++) {
+        const id = filtered[j];
+        // On remplace includes par une boucle
+        let found = false;
+        for (let k = 0; k < recipesByFilter.length; k++) {
+          if (recipesByFilter[k] === id) {
+            found = true;
+            break;
+          }
+        }
+        if (found) {
+          nextFiltered.push(id);
+        }
+      }
+      filtered = nextFiltered;
+    }
+    return filtered;
   }
 
   /**
@@ -204,14 +227,23 @@ export class StateManager {
   filterRecipesByNewFilter(newFilter) {
     const recipesByFilterIds =
       this.model.allRecipesByFilters.get(newFilter) || [];
-
-    // Filtrer les recettes par celles qui sont déjà sélectionnées
-    const filteredRecipes = recipesByFilterIds.filter((id) =>
-      this.currentFilteredRecipeIds.includes(id)
-    );
-
-    this.currentFilteredRecipeIds = filteredRecipes; // Mettre à jour les recettes sélectionnées
-    return this.currentFilteredRecipeIds; // Retourner les recettes filtrées
+    const filteredRecipes = [];
+    for (let i = 0; i < recipesByFilterIds.length; i++) {
+      const id = recipesByFilterIds[i];
+      // Remplacer includes par une boucle
+      let found = false;
+      for (let j = 0; j < this.currentFilteredRecipeIds.length; j++) {
+        if (this.currentFilteredRecipeIds[j] === id) {
+          found = true;
+          break;
+        }
+      }
+      if (found) {
+        filteredRecipes.push(id);
+      }
+    }
+    this.currentFilteredRecipeIds = filteredRecipes;
+    return this.currentFilteredRecipeIds;
   }
 
   /**
@@ -220,25 +252,53 @@ export class StateManager {
    */
   filterRecipesByMainSearch(value) {
     const { tokensWithSpaces, tokens } = TextUtils.processTokens(value);
-    let recipes = new Set(this.model.allRecipes.map((recipe) => recipe.id));
-    const { prefixIndex, invertedIndex } = this.model;
-    for (let i = 0; i < tokens.length; i++) {
+    let recipes = [];
+    // Récupérer tous les IDs de recettes
+    for (let i = 0, len = this.model.allRecipes.length; i < len; i++) {
+      recipes[i] = this.model.allRecipes[i].id;
+    }
+    const prefixIndex = this.model.prefixIndex;
+    const invertedIndex = this.model.invertedIndex;
+    let i = 0;
+    let tokensLen = tokens.length;
+    while (i < tokensLen) {
       const token = tokens[i];
-      const useInvertedIndex = tokensWithSpaces[i]?.endsWith(" ");
-      const idsForToken = useInvertedIndex
-        ? new Set(invertedIndex[token] || [])
-        : new Set(prefixIndex[token] || []);
-      if (idsForToken.size === 0) {
-        recipes.clear();
+      const useInvertedIndex = tokensWithSpaces[i] && tokensWithSpaces[i].endsWith(" ");
+      let idsArray = useInvertedIndex ? invertedIndex[token] || [] : prefixIndex[token] || [];
+      // Toujours convertir en tableau si c'est un Set
+      if (!Array.isArray(idsArray)) {
+        let arr = [];
+        let it = idsArray.values();
+        let next = it.next();
+        while (!next.done) {
+          arr[arr.length] = next.value;
+          next = it.next();
+        }
+        idsArray = arr;
+      }
+      if (idsArray.length === 0) {
+        recipes = [];
         break;
       }
-      recipes = new Set(
-        [...recipes].filter((recipeId) => idsForToken.has(recipeId))
-      );
+      // Intersection manuelle entre recipes et idsArray
+      let newRecipes = [];
+      for (let j = 0, rLen = recipes.length; j < rLen; j++) {
+        let recipeId = recipes[j];
+        let found = false;
+        for (let k = 0, idLen = idsArray.length; k < idLen; k++) {
+          if (idsArray[k] === recipeId) {
+            found = true;
+            break;
+          }
+        }
+        if (found) {
+          newRecipes[newRecipes.length] = recipeId;
+        }
+      }
+      recipes = newRecipes;
+      i++;
     }
-    const filteredRecipes = this.filterRecipesBySelectedFilters(
-      Array.from(recipes)
-    );
+    const filteredRecipes = this.filterRecipesBySelectedFilters(recipes);
     this.currentFilteredRecipeIds = filteredRecipes;
     this.controller.displayRecipesByIds(this.currentFilteredRecipeIds);
   }
@@ -251,37 +311,57 @@ export class StateManager {
     let recipes;
     if (this.mainSearchQuery === "") {
       // Si la recherche principale est vide, prendre toutes les recettes
-      recipes = new Set(this.model.allRecipes.map((recipe) => recipe.id));
+      recipes = new Set();
+      for (let i = 0; i < this.model.allRecipes.length; i++) {
+        recipes.add(this.model.allRecipes[i].id);
+      }
     } else if (this.mainSearchQuery.length >= 3) {
       // Si la recherche principale a 3 caractères ou plus, appliquer le tri
       const { tokensWithSpaces, tokens } = TextUtils.processTokens(
         this.mainSearchQuery
       );
-      recipes = new Set(this.model.allRecipes.map((recipe) => recipe.id));
+      recipes = new Set();
+      for (let i = 0; i < this.model.allRecipes.length; i++) {
+        recipes.add(this.model.allRecipes[i].id);
+      }
       const { prefixIndex, invertedIndex } = this.model;
       for (let i = 0; i < tokens.length; i++) {
         const token = tokens[i];
-        const useInvertedIndex = tokensWithSpaces[i]?.endsWith(" ");
-        const idsForToken = useInvertedIndex
-          ? new Set(invertedIndex[token] || [])
-          : new Set(prefixIndex[token] || []);
-        if (idsForToken.size === 0) {
+        const useInvertedIndex = tokensWithSpaces[i] && tokensWithSpaces[i].endsWith(" ");
+        let idsForTokenSet;
+        if (useInvertedIndex) {
+          idsForTokenSet = new Set(invertedIndex[token] || []);
+        } else {
+          idsForTokenSet = new Set(prefixIndex[token] || []);
+        }
+        if (idsForTokenSet.size === 0) {
           recipes.clear();
           break;
         }
-        recipes = new Set(
-          [...recipes].filter((recipeId) => idsForToken.has(recipeId))
-        );
+        // Intersect recipes et idsForTokenSet sans Array.filter
+        let newRecipes = new Set();
+        for (let recipeId of recipes) {
+          if (idsForTokenSet.has(recipeId)) {
+            newRecipes.add(recipeId);
+          }
+        }
+        recipes = newRecipes;
       }
     } else {
       // Si la recherche principale est trop courte, aucune recette n'est sélectionnée
       recipes = new Set();
     }
     // Appliquer un second filtrage avec les filtres actifs
-    const filteredRecipes = this.filterRecipesBySelectedFilters(
-      Array.from(recipes)
-    );
+    let recipesArray = [];
+    for (let recipeId of recipes) {
+      recipesArray.push(recipeId);
+    }
+    const filteredRecipes = this.filterRecipesBySelectedFilters(recipesArray);
     this.currentFilteredRecipeIds = filteredRecipes;
-    return Array.from(this.currentFilteredRecipeIds);
+    let result = [];
+    for (let i = 0; i < this.currentFilteredRecipeIds.length; i++) {
+      result.push(this.currentFilteredRecipeIds[i]);
+    }
+    return result;
   }
 }
