@@ -1,7 +1,7 @@
-import { AppModel } from "./models/Model.js";
-import { AppView } from "./views/View.js";
-import { AppController } from "./controller/Controller.js";
-import { StateManager } from "./stateManager/StateManager.js";
+import { RecipeAppController } from "./controllers/RecipeAppController.js";
+import { RecipeDataModel } from "./models/RecipeDataModel.js";
+import { AppView } from "./views/AppView.js";
+import { SearchAndFilterStateManager } from "./state/SearchAndFilterStateManager.js";
 
 // Détection de la page actuelle
 const CURRENT_PAGE = window.location.pathname;
@@ -13,14 +13,18 @@ const CURRENT_PAGE = window.location.pathname;
 const isHomePage = () =>
   CURRENT_PAGE.includes("index.html") || CURRENT_PAGE === "/";
 
-/**
- * Initialise l'application.
- * @param {AppController} appController - Instance du contrôleur de l'application.
- */
-const initializeApp = (appController) => {
+// Appel de la fonction d'initialisation
+document.addEventListener("DOMContentLoaded", () => {
+  // Initialisation de l'application après le chargement complet du DOM
+  const appController = new RecipeAppController(
+    new RecipeDataModel(),
+    new AppView(),
+    new SearchAndFilterStateManager()
+  );
+
   try {
     if (isHomePage()) {
-      appController.initializeHomePage();
+      appController.initializeApp();
     }
   } catch (error) {
     console.error(
@@ -28,15 +32,4 @@ const initializeApp = (appController) => {
       error.message
     );
   }
-};
-
-// Appel de la fonction d'initialisation
-document.addEventListener("DOMContentLoaded", () => {
-  // Initialisation de l'application après le chargement complet du DOM
-  const appController = new AppController(
-    new AppModel(),
-    new AppView(),
-    new StateManager()
-  );
-  initializeApp(appController);
 });
