@@ -1,4 +1,8 @@
-export class EventManager {
+/**
+ * Gestionnaire d'événements pour l'interface utilisateur, centralisé et optimisé.
+ * Gère la mise en place et la délégation des événements pour les filtres et recherches.
+ */
+export class UIEventHandler {
   /**
    * Ajoute un gestionnaire d'événements générique.
    *
@@ -28,11 +32,20 @@ export class EventManager {
       console.warn(`[setupFilterFormToggle] Bouton introuvable : ${buttonId}`);
       return;
     }
-    const form = button.parentNode?.querySelector(formSelector);
+    // Optimisation : recherche du form comme frère du bouton
+    const form = button.parentNode
+      ? button.parentNode.querySelector(formSelector)
+      : null;
     const svg = button.querySelector(svgSelector);
-    if (!form || !svg) {
+    if (!form) {
       console.warn(
-        `[setupFilterFormToggle] Sélecteur(s) manquant(s) pour ${buttonId}`
+        `[setupFilterFormToggle] Sélecteur(s) form manquant(s) pour ${buttonId}`
+      );
+      return;
+    }
+    if (!svg) {
+      console.warn(
+        `[setupFilterFormToggle] Sélecteur(s) svg manquant(s) pour ${buttonId}`
       );
       return;
     }
@@ -58,7 +71,7 @@ export class EventManager {
    * @param {Event} e - Événement déclenché par le clic.
    * @param {string} filteringOption - Option de filtrage sélectionnée.
    * @param {object} view - Instance de la vue pour manipuler l'interface utilisateur.
-   * @param {object} stateManager - Gestionnaire d'état pour suivre les données de l'application.
+   * @param {object} stateManager - Gestionnaire d'état des recherches et filtres pour suivre les données de l'application.
    * @param {object} controller - Instance du contrôleur pour gérer la logique de l'application.
    * @param {string} key - Clé pour identifier le type d'option de filtrage (ingredients, appliances, utensils).
    */
@@ -80,19 +93,11 @@ export class EventManager {
 
     const containerId = containerIdMap[key];
     const tagContainer = document.getElementById(containerId);
+    if (!stateManager.activeFilters.has(filteringOption)) {
+      stateManager.activeFilters.add(filteringOption);
 
-    // Remplacement de includes et push
-    var alreadyInFilters = false;
-    for (var i = 0; i < stateManager.activeFilters.length; i++) {
-      if (stateManager.activeFilters[i] === filteringOption) {
-        alreadyInFilters = true;
-        break;
-      }
-    }
-
-    if (!alreadyInFilters) {
-      // Ajout sans push
-      stateManager.activeFilters[stateManager.activeFilters.length] = filteringOption;
+      // Mettre à jour l'état du bouton de reset principal
+      view.updateMainResetButtonState();
 
       // Afficher le tag dans le conteneur principal
       const filteringOptionTag = view.displayFilterTag(filteringOption);
@@ -101,18 +106,12 @@ export class EventManager {
       const selectedFilteringOptionElement = view.displaySelectedFilterElement(
         filteringOption,
         tagContainer
-      );
-
-      // Gestion de la suppression du tag
+      ); // Gestion de la suppression du tag
       const removeFilter = () => {
-        // Remplacement de filter
-        var newActiveFilters = [];
-        for (var j = 0; j < stateManager.activeFilters.length; j++) {
-          if (stateManager.activeFilters[j] !== filteringOption) {
-            newActiveFilters[newActiveFilters.length] = stateManager.activeFilters[j];
-          }
-        }
-        stateManager.activeFilters = newActiveFilters;
+        stateManager.activeFilters.delete(filteringOption);
+
+        // Mettre à jour l'état du bouton de reset principal
+        view.updateMainResetButtonState();
 
         // Supprimer les tags des conteneurs
         if (filteringOptionTag.parentNode) {
@@ -128,17 +127,20 @@ export class EventManager {
         e.classList.remove("hidden");
 
         // Mettre à jour les recettes affichées
-        controller.displayRecipesByIds(stateManager.updateRecipesWithFilters());
+        controller.renderRecipesByIds(stateManager.updateRecipesWithFilters());
       };
 
       // Ajouter les événements de suppression
       filteringOptionTag.addEventListener("click", removeFilter);
       selectedFilteringOptionElement.addEventListener("click", removeFilter);
     }
-
     // Mettre à jour les recettes affichées
-    controller.displayRecipesByIds(
-      stateManager.filterRecipesByNewFilter(filteringOption)
+    controller.renderRecipesByIds(
+      stateManager.applyFilterCriteria(filteringOption)
+    );
+    // Déclencher la mise à jour des filtres avec les nouvelles recettes
+    stateManager.updateAllFiltersWithAvailableOptions(
+      stateManager.currentFilteredRecipeIds
     );
   }
 
@@ -160,74 +162,44 @@ export class EventManager {
 
     const tagContainer = document.getElementById("search-tag-container");
     if (tagContainer) {
-      // Remplacement de removeChild par une boucle pour trouver l'élément
-      var children = tagContainer.childNodes;
-      for (var i = 0; i < children.length; i++) {
-        if (children[i] === optionTagElement) {
-          tagContainer.removeChild(optionTagElement);
-          break;
-        }
-      }
+      tagContainer.removeChild(optionTagElement);
     }
 
     if (specificTagsContainerElement) {
-      var children2 = specificTagsContainerElement.childNodes;
-      for (var j = 0; j < children2.length; j++) {
-        if (children2[j] === selectedFilteringOptionElement) {
-          specificTagsContainerElement.removeChild(selectedFilteringOptionElement);
-          break;
-        }
-      }
+      specificTagsContainerElement.removeChild(selectedFilteringOptionElement);
     }
   }
-
   static handleEraseButtonClick(input, controller, key) {
-    function toArray(setLike) {
-      var arr = [];
-      // Remplacement de for...of par une boucle classique
-      var iterator = setLike[Symbol.iterator]();
-      var step = iterator.next();
-      while (!step.done) {
-        arr[arr.length] = step.value;
-        step = iterator.next();
-      }
-      return arr;
-    }
     const containerIdMap = {
-      "main-search-icon": function () {
-        // Correction de la récupération de tous les IDs de recettes
-        var allIds = [];
-        var recipes = controller.model.allRecipes;
-        if (recipes && typeof recipes.length === "number") {
-          for (var i = 0; i < recipes.length; i++) {
-            if (recipes[i] && recipes[i].id !== undefined) {
-              allIds[allIds.length] = recipes[i].id;
-            }
-          }
-        }
-        controller.displayRecipesByIds(
-          controller.appStateManager.filterRecipesBySelectedFilters(allIds)
-        );
-      },
-      "ingredients-search-icon": function () {
-        var arr = toArray(controller.model.allIngredients);
-        controller.appStateManager.renderFilteredOptions(
+      "ingredients-search-icon": () => {
+        // Utiliser les options disponibles basées sur les recettes actuelles au lieu de toutes les options
+        const availableOptions =
+          controller.appStateManager.getAvailableOptionsFromRecipes(
+            controller.appStateManager.currentFilteredRecipeIds
+          );
+        controller.appStateManager.updateFilterDropdownContent(
           "ingredients",
-          arr
+          availableOptions.ingredients
         );
       },
-      "appliances-search-icon": function () {
-        var arr = toArray(controller.model.allAppliances);
-        controller.appStateManager.renderFilteredOptions(
+      "appliances-search-icon": () => {
+        const availableOptions =
+          controller.appStateManager.getAvailableOptionsFromRecipes(
+            controller.appStateManager.currentFilteredRecipeIds
+          );
+        controller.appStateManager.updateFilterDropdownContent(
           "appliances",
-          arr
+          availableOptions.appliances
         );
       },
-      "utensils-search-icon": function () {
-        var arr = toArray(controller.model.allUtensils);
-        controller.appStateManager.renderFilteredOptions(
+      "utensils-search-icon": () => {
+        const availableOptions =
+          controller.appStateManager.getAvailableOptionsFromRecipes(
+            controller.appStateManager.currentFilteredRecipeIds
+          );
+        controller.appStateManager.updateFilterDropdownContent(
           "utensils",
-          arr
+          availableOptions.utensils
         );
       },
     };
@@ -239,5 +211,14 @@ export class EventManager {
     } else {
       console.warn(`Clé de recherche inconnue : ${key}`);
     }
+  }
+
+  static delegateEvent(parent, selector, eventType, handler) {
+    parent.addEventListener(eventType, function (event) {
+      const target = event.target.closest(selector);
+      if (target && parent.contains(target)) {
+        handler(event, target);
+      }
+    });
   }
 }

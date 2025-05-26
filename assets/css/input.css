@@ -1,13 +1,5 @@
 @import "tailwindcss";
 
-@theme {
-  --breakpoint-xl: 1440px;
-  --breakpoint-l: 1322px;
-  --breakpoint-m: 1024px;
-  --breakpoint-s: 768px;
-  --breakpoint-xs: 320px;
-}
-
 @font-face {
   font-family: "anton";
   src: url("../fonts/Anton/Anton-Regular.ttf") format("truetype");
@@ -155,6 +147,10 @@
 
   .hover\:block:hover {
     display: block;
+  }
+
+  .stroke-linecap-round {
+    stroke-linecap: round;
   }
 }
 input,

@@ -1,21 +1,22 @@
-/*
- * TemplateManager.js
- * Gère l'enregistrement et la création d'éléments HTML à partir de templates.
- * Utilisé pour créer des éléments de manière dynamique en fonction des données fournies.
+import { recipeCardTemplate } from "../components/RecipeCard.js";
+import { filteringOptionTemplate } from "../components/FilteringOption.js";
+
+/**
+ * Gestionnaire de composants d'interface réutilisables basé sur le pattern Factory.
+ * Permet la création d'éléments DOM complexes à partir de templates.
  */
-export class TemplateManager {
-  static factories = {};
+export class ComponentFactory {
+  static componentBuilders = {};
 
   /**
-   * Enregistre une factory avec un identifiant unique.
-   * @param {string} key - L'identifiant de la factory.
-   * @param {Function} factory - La fonction ou classe factory.
-   */
-  static registerFactory(key, factory) {
-    if (this.factories[key]) {
+   * Enregistre un constructeur de composant avec un identifiant unique.
+   * @param {string} key - L'identifiant du composant.
+   * @param {Function} factory - La fonction de création du composant.
+   */ static registerFactory(key, factory) {
+    if (this.componentBuilders[key]) {
       console.warn(`La factory avec la clé "${key}" est déjà enregistrée.`);
     }
-    this.factories[key] = factory;
+    this.componentBuilders[key] = factory;
   }
 
   /**
@@ -27,10 +28,8 @@ export class TemplateManager {
    * @param {Function} factories.createfilteringOptionTag - La factory pour créer un tag d'option de filtrage.
    */
   static registerFactories(factories) {
-    for (const key in factories) {
-      if (factories.hasOwnProperty(key)) {
-        this.registerFactory(key, factories[key]);
-      }
+    for (const [key, factory] of Object.entries(factories)) {
+      this.registerFactory(key, factory);
     }
   }
 
@@ -38,9 +37,8 @@ export class TemplateManager {
    * Récupère une factory enregistrée.
    * @param {string} key - L'identifiant de la factory.
    * @returns {Function} La factory correspondante.
-   */
-  static getFactory(key) {
-    const factory = this.factories[key];
+   */ static getFactory(key) {
+    const factory = this.componentBuilders[key];
     if (!factory) {
       throw new Error(`Aucune factory trouvée pour la clé "${key}".`);
     }
