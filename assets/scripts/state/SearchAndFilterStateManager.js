@@ -322,7 +322,7 @@ export class SearchAndFilterStateManager {
       return;
     }
 
-    // Recherche avec boucles natives
+    // Recherche avec boucles natives optimisées (CODE BLOCK 2)
     const { tokens } = StringProcessor.processTokens(value);
     const results = [];
     let resultCount = 0;
@@ -356,9 +356,7 @@ export class SearchAndFilterStateManager {
       ) {
         results[resultCount++] = recipe.id;
         continue recipeLoop;
-      }
-
-      // 2. Recherche dans la description
+      } // 2. Recherche dans la description
       if (
         recipe.description &&
         this._searchInField(
@@ -373,22 +371,8 @@ export class SearchAndFilterStateManager {
         continue recipeLoop;
       }
 
-      // 3. Recherche dans l'appareil
-      if (
-        recipe.appliance &&
-        this._searchInField(
-          recipe.appliance,
-          normalizedCache,
-          tokens,
-          tokenLengths,
-          tokensLength
-        )
-      ) {
-        results[resultCount++] = recipe.id;
-        continue recipeLoop;
-      }
-
-      // 4. Recherche dans les ingrédients (boucle optimisée)
+      // 3. Recherche dans les ingrédients (boucle optimisée)
+      // SUPPRIMÉ: Recherche dans l'appareil - non requis selon les spécifications
       const ingredients = recipe.ingredients;
       const ingredientsLength = ingredients.length;
       for (let j = 0; j < ingredientsLength; j++) {
@@ -408,6 +392,7 @@ export class SearchAndFilterStateManager {
         }
       }
     }
+
     const filteredRecipes = this.applyActiveFilters(results);
     this.currentFilteredRecipeIds = filteredRecipes;
     this.controller.renderRecipesByIds(this.currentFilteredRecipeIds);
@@ -463,7 +448,6 @@ export class SearchAndFilterStateManager {
               break;
             }
           }
-
           if (match) {
             // Vérification des limites de mot optimisée
             const prevChar = pos > 0 ? normalized[pos - 1] : " ";
@@ -472,11 +456,12 @@ export class SearchAndFilterStateManager {
                 ? normalized[pos + tokenLength]
                 : " ";
 
-            // Utilisation de switch pour des comparaisons plus rapides
-            switch (true) {
-              case !this._isAlphaNumericFast(prevChar):
-              case !this._isAlphaNumericFast(nextChar):
-                continue tokenLoop; // Token trouvé, passer au suivant
+            // Vérification que le token est bien délimité par des non-alphanumériques
+            if (
+              !this._isAlphaNumericFast(prevChar) ||
+              !this._isAlphaNumericFast(nextChar)
+            ) {
+              continue tokenLoop; // Token trouvé avec bonnes limites, passer au suivant
             }
           }
         }
@@ -517,6 +502,7 @@ export class SearchAndFilterStateManager {
       code > 191
     ); // Caractères accentués
   }
+
   /**
    * Met à jour les recettes en fonction des filtres actifs et de la recherche principale.
    * @returns {Array<number>} Liste des IDs des recettes filtrées.
@@ -563,9 +549,7 @@ export class SearchAndFilterStateManager {
         ) {
           results[resultCount++] = recipe.id;
           continue recipeLoop;
-        }
-
-        // 2. Recherche dans la description
+        } // 2. Recherche dans la description
         if (
           recipe.description &&
           this._searchInField(
@@ -580,22 +564,8 @@ export class SearchAndFilterStateManager {
           continue recipeLoop;
         }
 
-        // 3. Recherche dans l'appareil
-        if (
-          recipe.appliance &&
-          this._searchInField(
-            recipe.appliance,
-            normalizedCache,
-            tokens,
-            tokenLengths,
-            tokensLength
-          )
-        ) {
-          results[resultCount++] = recipe.id;
-          continue recipeLoop;
-        }
-
-        // 4. Recherche dans les ingrédients (boucle optimisée)
+        // 3. Recherche dans les ingrédients (boucle optimisée)
+        // SUPPRIMÉ: Recherche dans l'appareil - non requis selon les spécifications
         const ingredients = recipe.ingredients;
         const ingredientsLength = ingredients.length;
         for (let j = 0; j < ingredientsLength; j++) {
