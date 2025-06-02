@@ -124,24 +124,21 @@ export class UIEventHandler {
           );
         }
 
-        e.classList.remove("hidden");
-
-        // Mettre à jour les recettes affichées
-        controller.renderRecipesByIds(stateManager.updateRecipesWithFilters());
+        e.classList.remove("hidden"); // Mettre à jour les recettes affichées
+        const filteredRecipes = stateManager.updateRecipesWithFilters();
+        controller.renderRecipesByIds(filteredRecipes);
+        // Déclencher la mise à jour des filtres avec les nouvelles recettes
+        stateManager.updateAllFiltersWithAvailableOptions(filteredRecipes);
       };
 
       // Ajouter les événements de suppression
       filteringOptionTag.addEventListener("click", removeFilter);
       selectedFilteringOptionElement.addEventListener("click", removeFilter);
-    }
-    // Mettre à jour les recettes affichées
-    controller.renderRecipesByIds(
-      stateManager.applyFilterCriteria(filteringOption)
-    );
+    } // Mettre à jour les recettes affichées
+    const filteredRecipes = stateManager.updateRecipesWithFilters();
+    controller.renderRecipesByIds(filteredRecipes);
     // Déclencher la mise à jour des filtres avec les nouvelles recettes
-    stateManager.updateAllFiltersWithAvailableOptions(
-      stateManager.currentFilteredRecipeIds
-    );
+    stateManager.updateAllFiltersWithAvailableOptions(filteredRecipes);
   }
 
   /**

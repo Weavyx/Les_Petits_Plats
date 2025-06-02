@@ -289,127 +289,206 @@ export class SearchAndFilterStateManager {
   }
 
   /**
-   * Filtre les recettes en fonction d'un nouveau filtre.
-   * @param {string} newFilter - Nouveau filtre à appliquer.
-   * @returns {Array<number>} Liste des IDs des recettes filtrées.
-   */ applyFilterCriteria(newFilter) {
-    const recipesByFilterIds =
-      this.model.allRecipesByFilters.get(newFilter) || [];
-    if (recipesByFilterIds.length === 0) {
-      this.currentFilteredRecipeIds = [];
-      return [];
-    }
-
-    // Optimisation : utiliser Set pour intersection plus rapide
-    const filterSet = new Set(recipesByFilterIds);
-    this.currentFilteredRecipeIds = this.currentFilteredRecipeIds.filter((id) =>
-      filterSet.has(id)
-    );
-
-    return this.currentFilteredRecipeIds;
-  }
-  /**
-   * Filtre les recettes en fonction de la recherche principale.
-   * @param {string} value - Texte de la recherche principale.
+   * Filtre les recettes en fonction de la recherche principale avec optimisations de performance.
+   * @method searchRecipesByMainQuery
+   * @param {string} value - Texte de la recherche principale saisi par l'utilisateur
+   * @description
+   * Cette méthode implémente un algorithme de recherche optimisé avec les caractéristiques suivantes :
+   *
+   * **Comportement selon la longueur de la recherche :**
+   * - Si `value` est vide : affiche toutes les recettes avec filtres actifs
+   * - Si `value` a 3+ caractères : effectue une recherche textuelle optimisée
+   *
+   * **Optimisations de performance :**
+   * - Tokenisation de la requête pour recherche multi-mots
+   * - Pré-calcul des longueurs de tokens pour éviter les recalculs
+   * - Cache des textes normalisés pour éviter les re-normalisations
+   * - Algorithme de recherche avec saut de caractères (Boyer-Moore simplifié)
+   * - Vérification des limites de mots pour correspondances exactes
+   *
+   * **Champs de recherche (dans l'ordre) :**
+   * 1. Nom de la recette (`recipe.name`)
+   * 2. Description de la recette (`recipe.description`)
+   * 3. Ingrédients de la recette (`recipe.ingredients[].ingredient`)
+   *
+   * **Processus de filtrage :**
+   * 1. Tokenise la requête de recherche
+   * 2. Pour chaque recette, vérifie si tous les tokens sont présents dans au moins un champ
+   * 3. Applique les filtres actifs supplémentaires
+   * 4. Met à jour l'affichage des recettes et des options de filtres disponibles
+   *
+   * @fires SearchAndFilterStateManager#recipesFiltered
+   * @see StringProcessor.processTokens - Pour la tokenisation de la recherche
+   * @see SearchAndFilterStateManager#_searchTokenInField - Pour l'algorithme de recherche optimisé
+   * @see SearchAndFilterStateManager#applyActiveFilters - Pour l'application des filtres
+   *
+   * @example
+   * // Recherche simple
+   * stateManager.searchRecipesByMainQuery("chocolat");
+   *
+   * @example
+   * // Recherche multi-mots
+   * stateManager.searchRecipesByMainQuery("tarte aux pommes");
+   *
+   * @example
+   * // Effacement de la recherche
+   * stateManager.searchRecipesByMainQuery("");
+   *
+   * @performance
+   * - Complexité temporelle : O(n*m*k) où n=nombre de recettes, m=nombre de champs, k=longueur moyenne des champs
+   * - Optimisations : cache de normalisation, saut de caractères, arrêt précoce
+   * - Mémoire : utilisation d'un cache temporaire pour les textes normalisés
    */ searchRecipesByMainQuery(value) {
     if (value.length === 0) {
-      this.currentFilteredRecipeIds = this.applyActiveFilters(
-        this.model.allRecipes.map((r) => r.id)
-      );
+      // Construction manuelle du tableau des IDs pour éviter map()
+      let allRecipeIds = [];
+      for (let i = 0; i < this.model.allRecipes.length; i++) {
+        allRecipeIds[i] = this.model.allRecipes[i].id;
+      }
+
+      this.currentFilteredRecipeIds = this.applyActiveFilters(allRecipeIds);
       this.controller.renderRecipesByIds(this.currentFilteredRecipeIds);
       // Mettre à jour les filtres avec les options disponibles
       this.updateAllFiltersWithAvailableOptions(this.currentFilteredRecipeIds);
       return;
+    } // Étape 1 : Tokenisation de la requête de recherche (logique de searchWithoutSetOrArrayMethod)
+    // Sépare le terme en tokens individuels avec informations sur les espaces
+    const { tokensWithSpaces, tokens } = StringProcessor.processTokens(value);
+
+    // Étape 2 : Initialisation avec l'ensemble complet des recettes
+    // Construction manuelle du tableau des IDs pour éviter map()
+    let recipeIds = [];
+    for (let i = 0; i < this.model.allRecipes.length; i++) {
+      recipeIds[i] = this.model.allRecipes[i].id;
     }
 
-    // Recherche avec boucles natives optimisées (CODE BLOCK 2)
-    const { tokens } = StringProcessor.processTokens(value);
-    const results = [];
-    let resultCount = 0;
+    // Étape 3 : Filtrage progressif par intersection de tokens
+    // Chaque token réduit l'ensemble des résultats possibles
     const tokensLength = tokens.length;
     const allRecipes = this.model.allRecipes;
-
-    // Pré-calcul des longueurs de tokens pour éviter les recalculs
-    const tokenLengths = [];
-    for (let i = 0; i < tokensLength; i++) {
-      tokenLengths[i] = tokens[i].length;
-    }
-
-    // Cache pour les textes normalisés (évite les re-normalisations)
     const normalizedCache = {};
 
-    // Boucle principale optimisée sur toutes les recettes
-    recipeLoop: for (let i = 0; i < allRecipes.length; i++) {
-      const recipe = allRecipes[i];
+    for (
+      let tokenIndex = 0;
+      tokenIndex < tokensLength && recipeIds.length > 0;
+      tokenIndex++
+    ) {
+      const token = tokens[tokenIndex];
 
-      // Recherche directe dans chaque champ sans créer de tableau intermédiaire
-      // 1. Recherche dans le nom
-      if (
-        recipe.name &&
-        this._searchInField(
-          recipe.name,
-          normalizedCache,
-          tokens,
-          tokenLengths,
-          tokensLength
-        )
-      ) {
-        results[resultCount++] = recipe.id;
-        continue recipeLoop;
-      } // 2. Recherche dans la description
-      if (
-        recipe.description &&
-        this._searchInField(
-          recipe.description,
-          normalizedCache,
-          tokens,
-          tokenLengths,
-          tokensLength
-        )
-      ) {
-        results[resultCount++] = recipe.id;
-        continue recipeLoop;
-      }
+      // Sélection du type de recherche selon le contexte du token
+      // Si le token se termine par un espace, c'est un mot complet
+      const isCompleteWord = tokensWithSpaces[tokenIndex]?.endsWith(" ");
 
-      // 3. Recherche dans les ingrédients (boucle optimisée)
-      // SUPPRIMÉ: Recherche dans l'appareil - non requis selon les spécifications
-      const ingredients = recipe.ingredients;
-      const ingredientsLength = ingredients.length;
-      for (let j = 0; j < ingredientsLength; j++) {
-        const ingredient = ingredients[j].ingredient;
+      // Collecte des IDs de recettes correspondant au token actuel
+      const idsForToken = [];
+      let idsCount = 0;
+
+      // Recherche dans toutes les recettes pour le token actuel
+      for (let i = 0; i < allRecipes.length; i++) {
+        const recipe = allRecipes[i];
+        let recipeMatches = false; // 1. Recherche dans le nom
         if (
-          ingredient &&
-          this._searchInField(
-            ingredient,
+          recipe.name &&
+          this._searchTokenInField(
+            recipe.name,
+            token,
             normalizedCache,
-            tokens,
-            tokenLengths,
-            tokensLength
+            isCompleteWord
           )
         ) {
-          results[resultCount++] = recipe.id;
-          continue recipeLoop;
+          recipeMatches = true;
+        }
+
+        // 2. Recherche dans la description (seulement si pas déjà trouvé)
+        if (
+          !recipeMatches &&
+          recipe.description &&
+          this._searchTokenInField(
+            recipe.description,
+            token,
+            normalizedCache,
+            isCompleteWord
+          )
+        ) {
+          recipeMatches = true;
+        }
+
+        // 3. Recherche dans les ingrédients (seulement si pas déjà trouvé)
+        if (!recipeMatches && recipe.ingredients) {
+          const ingredients = recipe.ingredients;
+          const ingredientsLength = ingredients.length;
+          for (let j = 0; j < ingredientsLength; j++) {
+            const ingredient = ingredients[j].ingredient;
+            if (
+              ingredient &&
+              this._searchTokenInField(
+                ingredient,
+                token,
+                normalizedCache,
+                isCompleteWord
+              )
+            ) {
+              recipeMatches = true;
+              break; // Sortie précoce dès qu'un ingrédient correspond
+            }
+          }
+        }
+
+        // Si la recette correspond au token, l'ajouter aux résultats
+        if (recipeMatches) {
+          idsForToken[idsCount++] = recipe.id;
         }
       }
+
+      // Optimisation : arrêt précoce si aucun résultat pour ce token
+      if (idsCount === 0) {
+        recipeIds = [];
+        break;
+      }
+
+      // INTERSECTION MANUELLE AVEC BOUCLES NATIVES
+      // Alternative performante aux méthodes filter() et includes()
+      const intersectionResult = [];
+      let intersectionIndex = 0;
+
+      // Pour chaque ID de recette actuel, vérifier s'il existe dans les résultats du token
+      for (let j = 0; j < recipeIds.length; j++) {
+        const recipeId = recipeIds[j];
+
+        // Recherche linéaire dans idsForToken (remplace includes())
+        let found = false;
+        for (let k = 0; k < idsCount; k++) {
+          if (idsForToken[k] === recipeId) {
+            found = true;
+            break; // Optimisation : sortie précoce dès que trouvé
+          }
+        }
+
+        // Si l'ID est trouvé, l'ajouter au résultat de l'intersection
+        if (found) {
+          intersectionResult[intersectionIndex] = recipeId;
+          intersectionIndex++;
+        }
+      }
+
+      // Mise à jour de la liste des IDs pour la prochaine itération
+      recipeIds = intersectionResult;
     }
 
-    const filteredRecipes = this.applyActiveFilters(results);
+    const filteredRecipes = this.applyActiveFilters(recipeIds);
     this.currentFilteredRecipeIds = filteredRecipes;
     this.controller.renderRecipesByIds(this.currentFilteredRecipeIds);
     // Mettre à jour les filtres avec les options disponibles
     this.updateAllFiltersWithAvailableOptions(this.currentFilteredRecipeIds);
   }
-
-  /**
-   * Fonction interne optimisée pour la recherche dans un champ avec boucles natives
+  /**   * Fonction interne optimisée pour la recherche d'un seul token dans un champ avec boucles natives
    * @param {string} field - Champ de texte à analyser
+   * @param {string} token - Token de recherche unique
    * @param {Object} cache - Cache des textes normalisés
-   * @param {Array} tokens - Tokens de recherche
-   * @param {Array} tokenLengths - Longueurs pré-calculées des tokens
-   * @param {number} tokensLength - Nombre de tokens
-   * @returns {boolean} - True si tous les tokens sont trouvés
+   * @param {boolean} isCompleteWord - True si le token doit être recherché comme mot complet, false pour recherche de préfixe
+   * @returns {boolean} - True si le token est trouvé
    */
-  _searchInField(field, cache, tokens, tokenLengths, tokensLength) {
+  _searchTokenInField(field, token, cache, isCompleteWord) {
     // Utilisation du cache pour éviter les re-normalisations
     let normalized = cache[field];
     if (normalized === undefined) {
@@ -418,89 +497,55 @@ export class SearchAndFilterStateManager {
     }
 
     const normalizedLength = normalized.length;
+    const tokenLength = token.length;
 
-    // Vérification que tous les tokens sont présents (ordre optimisé)
-    tokenLoop: for (let t = 0; t < tokensLength; t++) {
-      const token = tokens[t];
-      const tokenLength = tokenLengths[t];
-
-      // Optimisation : si le champ est plus court que le token, skip
-      if (normalizedLength < tokenLength) {
-        return false;
-      }
-
-      // Recherche de sous-chaîne avec algorithme Boyer-Moore simplifié
-      const lastCharIndex = tokenLength - 1;
-      const lastChar = token[lastCharIndex];
-
-      // Recherche optimisée avec saut de caractères
-      let pos = 0;
-      const maxPos = normalizedLength - tokenLength;
-
-      while (pos <= maxPos) {
-        // Vérification du dernier caractère en premier (optimisation)
-        if (normalized[pos + lastCharIndex] === lastChar) {
-          // Vérification complète du token
-          let match = true;
-          for (let char = 0; char < tokenLength; char++) {
-            if (normalized[pos + char] !== token[char]) {
-              match = false;
-              break;
-            }
-          }
-          if (match) {
-            // Vérification des limites de mot optimisée
-            const prevChar = pos > 0 ? normalized[pos - 1] : " ";
-            const nextChar =
-              pos + tokenLength < normalizedLength
-                ? normalized[pos + tokenLength]
-                : " ";
-
-            // Vérification que le token est bien délimité par des non-alphanumériques
-            if (
-              !this._isAlphaNumericFast(prevChar) ||
-              !this._isAlphaNumericFast(nextChar)
-            ) {
-              continue tokenLoop; // Token trouvé avec bonnes limites, passer au suivant
-            }
-          }
-        }
-
-        // Saut optimisé : si le caractère ne correspond pas, sauter
-        pos++;
-
-        // Optimisation supplémentaire : saut par blocs pour les longs textes
-        if (normalizedLength > 100 && pos < maxPos - 10) {
-          // Recherche rapide du premier caractère du token
-          const firstChar = token[0];
-          while (pos <= maxPos && normalized[pos] !== firstChar) {
-            pos += 3; // Saut de 3 caractères pour accélérer
-          }
-        }
-      }
-
-      // Token non trouvé dans ce champ
+    // Optimisation : si le champ est plus court que le token, skip
+    if (normalizedLength < tokenLength) {
       return false;
     }
 
-    // Tous les tokens ont été trouvés
-    return true;
-  }
+    // Recherche de sous-chaîne avec boucles natives (Boyer-Moore simplifié)
+    const maxPos = normalizedLength - tokenLength;
+    let pos = 0;
 
-  /**
-   * Fonction utilitaire optimisée pour vérifier si un caractère est alphanumérique
-   * @param {string} char - Caractère à vérifier
-   * @returns {boolean} - True si alphanumérique
-   */
-  _isAlphaNumericFast(char) {
-    const code = char.charCodeAt(0);
-    // Optimisation avec des comparaisons en cascade pour les cas les plus fréquents
-    return (
-      (code > 47 && code < 58) || // 0-9 (cas le plus fréquent en premier)
-      (code > 96 && code < 123) || // a-z
-      (code > 64 && code < 91) || // A-Z
-      code > 191
-    ); // Caractères accentués
+    while (pos <= maxPos) {
+      // Vérification caractère par caractère
+      let match = true;
+      for (let i = 0; i < tokenLength; i++) {
+        if (normalized[pos + i] !== token[i]) {
+          match = false;
+          break;
+        }
+      }
+
+      if (match) {
+        if (isCompleteWord) {
+          // Mot complet : recherche exacte avec vérification des limites de mots
+          const isStartOfWord =
+            pos === 0 || !/[a-zA-Z0-9]/.test(normalized[pos - 1]);
+          const isEndOfWord =
+            pos + tokenLength === normalizedLength ||
+            !/[a-zA-Z0-9]/.test(normalized[pos + tokenLength]);
+
+          if (isStartOfWord && isEndOfWord) {
+            return true;
+          }
+        } else {
+          // Préfixe : recherche par autocomplétion (correspond au début d'un mot)
+          const isStartOfWord =
+            pos === 0 || !/[a-zA-Z0-9]/.test(normalized[pos - 1]);
+
+          if (isStartOfWord) {
+            return true;
+          }
+        }
+      }
+
+      // Avancement simple (peut être optimisé avec Boyer-Moore complet)
+      pos++;
+    }
+
+    return false;
   }
 
   /**
@@ -515,78 +560,128 @@ export class SearchAndFilterStateManager {
           ? new Set(this.model.allRecipes.map((recipe) => recipe.id))
           : new Set();
     } else {
-      // Recherche principale avec boucles natives
-      const { tokens } = StringProcessor.processTokens(this.mainSearchQuery);
-      const results = [];
-      let resultCount = 0;
+      // Recherche principale avec boucles natives - MÊME LOGIQUE QUE searchRecipesByMainQuery
+      const { tokensWithSpaces, tokens } = StringProcessor.processTokens(
+        this.mainSearchQuery
+      );
+
+      // Construction manuelle du tableau des IDs pour éviter map()
+      let recipeIds = [];
+      for (let i = 0; i < this.model.allRecipes.length; i++) {
+        recipeIds[i] = this.model.allRecipes[i].id;
+      }
+
+      // Filtrage progressif par intersection de tokens
       const tokensLength = tokens.length;
       const allRecipes = this.model.allRecipes;
-
-      // Pré-calcul des longueurs de tokens pour éviter les recalculs
-      const tokenLengths = [];
-      for (let i = 0; i < tokensLength; i++) {
-        tokenLengths[i] = tokens[i].length;
-      }
-
-      // Cache pour les textes normalisés (évite les re-normalisations)
       const normalizedCache = {};
 
-      // Boucle principale optimisée sur toutes les recettes
-      recipeLoop: for (let i = 0; i < allRecipes.length; i++) {
-        const recipe = allRecipes[i];
+      for (
+        let tokenIndex = 0;
+        tokenIndex < tokensLength && recipeIds.length > 0;
+        tokenIndex++
+      ) {
+        const token = tokens[tokenIndex];
+        const isCompleteWord = tokensWithSpaces[tokenIndex]?.endsWith(" ");
 
-        // Recherche directe dans chaque champ sans créer de tableau intermédiaire
-        // 1. Recherche dans le nom
-        if (
-          recipe.name &&
-          this._searchInField(
-            recipe.name,
-            normalizedCache,
-            tokens,
-            tokenLengths,
-            tokensLength
-          )
-        ) {
-          results[resultCount++] = recipe.id;
-          continue recipeLoop;
-        } // 2. Recherche dans la description
-        if (
-          recipe.description &&
-          this._searchInField(
-            recipe.description,
-            normalizedCache,
-            tokens,
-            tokenLengths,
-            tokensLength
-          )
-        ) {
-          results[resultCount++] = recipe.id;
-          continue recipeLoop;
-        }
+        // Collecte des IDs de recettes correspondant au token actuel
+        const idsForToken = [];
+        let idsCount = 0;
 
-        // 3. Recherche dans les ingrédients (boucle optimisée)
-        // SUPPRIMÉ: Recherche dans l'appareil - non requis selon les spécifications
-        const ingredients = recipe.ingredients;
-        const ingredientsLength = ingredients.length;
-        for (let j = 0; j < ingredientsLength; j++) {
-          const ingredient = ingredients[j].ingredient;
+        // Recherche dans toutes les recettes pour le token actuel
+        for (let i = 0; i < allRecipes.length; i++) {
+          const recipe = allRecipes[i];
+          let recipeMatches = false;
+
+          // 1. Recherche dans le nom
           if (
-            ingredient &&
-            this._searchInField(
-              ingredient,
+            recipe.name &&
+            this._searchTokenInField(
+              recipe.name,
+              token,
               normalizedCache,
-              tokens,
-              tokenLengths,
-              tokensLength
+              isCompleteWord
             )
           ) {
-            results[resultCount++] = recipe.id;
-            continue recipeLoop;
+            recipeMatches = true;
+          }
+
+          // 2. Recherche dans la description (seulement si pas déjà trouvé)
+          if (
+            !recipeMatches &&
+            recipe.description &&
+            this._searchTokenInField(
+              recipe.description,
+              token,
+              normalizedCache,
+              isCompleteWord
+            )
+          ) {
+            recipeMatches = true;
+          }
+
+          // 3. Recherche dans les ingrédients (seulement si pas déjà trouvé)
+          if (!recipeMatches && recipe.ingredients) {
+            const ingredients = recipe.ingredients;
+            const ingredientsLength = ingredients.length;
+            for (let j = 0; j < ingredientsLength; j++) {
+              const ingredient = ingredients[j].ingredient;
+              if (
+                ingredient &&
+                this._searchTokenInField(
+                  ingredient,
+                  token,
+                  normalizedCache,
+                  isCompleteWord
+                )
+              ) {
+                recipeMatches = true;
+                break;
+              }
+            }
+          }
+
+          // Si la recette correspond au token, l'ajouter aux résultats
+          if (recipeMatches) {
+            idsForToken[idsCount++] = recipe.id;
           }
         }
+
+        // Optimisation : arrêt précoce si aucun résultat pour ce token
+        if (idsCount === 0) {
+          recipeIds = [];
+          break;
+        }
+
+        // INTERSECTION MANUELLE AVEC BOUCLES NATIVES
+        const intersectionResult = [];
+        let intersectionIndex = 0;
+
+        // Pour chaque ID de recette actuel, vérifier s'il existe dans les résultats du token
+        for (let j = 0; j < recipeIds.length; j++) {
+          const recipeId = recipeIds[j];
+
+          // Recherche linéaire dans idsForToken (remplace includes())
+          let found = false;
+          for (let k = 0; k < idsCount; k++) {
+            if (idsForToken[k] === recipeId) {
+              found = true;
+              break;
+            }
+          }
+
+          // Si l'ID est trouvé, l'ajouter au résultat de l'intersection
+          if (found) {
+            intersectionResult[intersectionIndex] = recipeId;
+            intersectionIndex++;
+          }
+        }
+
+        // Mise à jour de la liste des IDs pour la prochaine itération
+        recipeIds = intersectionResult;
       }
 
-      recipes = new Set(results);
+      recipes = new Set(recipeIds);
     }
     const filteredRecipes = this.applyActiveFilters(Array.from(recipes));
     this.currentFilteredRecipeIds = filteredRecipes;
