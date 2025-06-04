@@ -17,12 +17,10 @@ export class SearchAndFilterStateManager {
    * Crée ou retourne l'instance unique du gestionnaire d'état.
    * @constructor
    * @returns {SearchAndFilterStateManager} L'instance unique du gestionnaire
-   * @description
-   * Initialise les propriétés suivantes :
+   * @description   * Initialise les propriétés suivantes :
    * - Références aux éléments du DOM pour les champs de recherche
    * - États des recherches pour chaque type de filtre
    * - Collection des filtres actifs
-   * - Système de debounce pour les performances
    * @example
    * const stateManager = new SearchAndFilterStateManager();
    */
@@ -46,14 +44,9 @@ export class SearchAndFilterStateManager {
     this.ingredientsQuery = ""; // Texte dans le champ de recherche des ingrédients
     this.appliancesQuery = ""; // Texte dans le champ de recherche des appareils
     this.utensilsQuery = ""; // Texte dans le champ de recherche des ustensiles
-
     this.activeFilters = new Set(); // Utilisation d'un Set pour les filtres actifs
 
     this.currentFilteredRecipeIds = []; // Liste des IDs des recettes filtrées
-
-    // Optimisation : Debounce pour la recherche principale
-    this.searchDebounceTimeout = null;
-    this.DEBOUNCE_DELAY = 300; // 300ms de délai
 
     SearchAndFilterStateManager.instance = this;
   }
@@ -97,15 +90,10 @@ export class SearchAndFilterStateManager {
     switch (key) {
       case "mainSearchQuery":
         this.mainSearchQuery = value;
-        // Optimisation : Utilisation du debounce pour la recherche principale
-        if (this.searchDebounceTimeout) {
-          clearTimeout(this.searchDebounceTimeout);
+        // Recherche directe sans debounce
+        if (value.length >= 3 || value.length === 0) {
+          this.searchRecipesByMainQuery(value);
         }
-        this.searchDebounceTimeout = setTimeout(() => {
-          if (value.length >= 3 || value.length === 0) {
-            this.searchRecipesByMainQuery(value);
-          }
-        }, this.DEBOUNCE_DELAY);
         break;
 
       case "ingredientsQuery":
@@ -553,15 +541,8 @@ export class SearchAndFilterStateManager {
       Array.from(this.model.allUtensils)
     );
   }
-
   // Méthodes de nettoyage pour optimiser la mémoire
   cleanupOptimizations() {
-    // Nettoyer les timeouts de debounce
-    if (this.searchDebounceTimeout) {
-      clearTimeout(this.searchDebounceTimeout);
-      this.searchDebounceTimeout = null;
-    }
-
     // Nettoyer les caches StringProcessor périodiquement
     if (Math.random() < 0.1) {
       // 10% de chance à chaque reset
