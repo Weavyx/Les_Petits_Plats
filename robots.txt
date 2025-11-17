@@ -1,0 +1,20 @@
+# Robots.txt for Les Petits Plats
+# Sous-domaine portfolio : https://les-petits-plats.maximenardelli.fr
+# Application web - moteur de recherche de recettes
+
+User-agent: *
+Allow: /
+Allow: /assets/css/
+Allow: /assets/scripts/
+
+# Block sensitive data and internal files
+Disallow: /assets/data/recipes.js
+Disallow: /*.json$
+Disallow: /.htaccess
+
+# Crawl delay (respectful crawling)
+Crawl-delay: 1
+Request-rate: 1/1s
+
+# Sitemap location
+Sitemap: https://les-petits-plats.maximenardelli.fr/sitemap.xml
