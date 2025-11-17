@@ -1,3 +1,7 @@
+# Les Petits Plats - Configuration Apache
+# Destiné à : https://les-petits-plats.maximenardelli.fr/
+# Corrigé pour portfolio embed
+
 # Enable GZIP and Brotli Compression
 <IfModule mod_deflate.c>
 AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
@@ -30,14 +34,17 @@ ExpiresByType font/woff2 "access plus 1 year"
 # Security Headers
 <IfModule mod_headers.c>
 Header set X-Content-Type-Options "nosniff"
-Header set X-Frame-Options "SAMEORIGIN"
 Header set X-XSS-Protection "1; mode=block"
 Header set Referrer-Policy "strict-origin-when-cross-origin"
 Header set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
 Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 
-# Content Security Policy - Optimized for Cloudflare Analytics
-Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cloudflareinsights.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'self'; upgrade-insecure-requests;"
+# Content Security Policy - Optimized for portfolio embed + Cloudflare Analytics
+# FIXES:
+# 1. Supprimé frame-ancestors (bloquait l'iframe)
+# 2. Ajouté 'unsafe-inline' pour script-src
+# 3. Ajouté https://static.cloudflareinsights.com et https://cloudflareinsights.com pour beacon.min.js
+Header set Content-Security-Policy "default-src 'self' https://maximenardelli.fr; script-src 'self' 'unsafe-inline' https://maximenardelli.fr https://static.cloudflareinsights.com https://cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://maximenardelli.fr; font-src 'self' https://maximenardelli.fr; img-src 'self' data: https: https://maximenardelli.fr; connect-src 'self' https: https://static.cloudflareinsights.com https://cloudflareinsights.com; upgrade-insecure-requests;"
 </IfModule>
 
 # Disable Directory Listing
@@ -52,9 +59,10 @@ ServerSignature Off
 # UTF-8 Encoding
 AddCharset UTF-8 .html .css .js .xml .json
 
-# Redirect HTTP to HTTPS (uncomment if needed)
-# <IfModule mod_rewrite.c>
-#     RewriteEngine On
-#     RewriteCond %{HTTPS} off
-#     RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-# </IfModule>
+# Redirect HTTP to HTTPS
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
